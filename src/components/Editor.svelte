@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { EditorState } from "@codemirror/state";
+  import { EditorState, Compartment } from "@codemirror/state";
   import {
     EditorView,
     lineNumbers,
@@ -9,36 +9,32 @@
   import { javascript } from "@codemirror/lang-javascript";
   import { oneDark } from "@codemirror/theme-one-dark";
 
+  export let initial: string = "";
+
   let container: HTMLDivElement;
   let view: EditorView;
 
+  const language = new Compartment();
+  const theme = new Compartment();
+
   onMount(() => {
     const state = EditorState.create({
-      doc: "// Escribe tu DSL aquí...\n",
+      doc: initial,
       extensions: [
-        javascript(),
-        oneDark,
+        language.of(javascript()),
+        theme.of(oneDark),
         lineNumbers(),
         highlightActiveLine(),
         EditorView.lineWrapping,
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            const content = update.state.doc.toString();
-            window.dispatchEvent(
-              new CustomEvent("editor-change", { detail: content }),
-            );
-          }
-        }),
       ],
     });
 
-    view = new EditorView({
-      state,
-      parent: container,
-    });
-
+    view = new EditorView({ state, parent: container });
     return () => view.destroy();
   });
 </script>
 
-<div class="h-full w-full rounded-md" bind:this={container}></div>
+<div
+  class="h-full w-full rounded-md overflow-hidden"
+  bind:this={container}
+></div>

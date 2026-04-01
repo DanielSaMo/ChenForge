@@ -1,57 +1,48 @@
 ---
-import "../styles/global.css";
+import BaseLayout from "../layouts/BaseLayout.astro";
 import Editor from "../components/Editor.svelte";
 ---
 
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <title>ChenForge — ER Extended Generator</title>
-  </head>
+<BaseLayout title="ChenForge — ER Extended Generator">
+  <header class="p-4 bg-white shadow flex items-center justify-between">
+    <h1 class="text-xl font-semibold">ChenForge</h1>
 
-  <body class="h-screen flex flex-col">
-    <header class="p-4 bg-white shadow flex items-center justify-between">
-      <h1 class="text-xl font-semibold">ChenForge</h1>
-      <button
-        id="compileBtn"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+    <button
+      id="compileBtn"
+      class="px-4 py-2 rounded text-white
+      bg-blue-600 hover:bg-blue-700
+      active:bg-blue-800 active:scale-[0.98]
+        transition-all duration-75"
+    >
+      Compile
+    </button>
+  </header>
+
+  <main class="flex flex-1 min-h-0">
+    <section
+      class="w-full md:w-1/2 border-r border-gray-300 p-4 flex flex-col min-h-0"
+    >
+      <h2 class="text-lg font-medium mb-2">Editor</h2>
+
+      <div class="flex-1 min-h-0">
+        <Editor client:only="svelte" initial="// Escribe tu DSL aquí..." />
+      </div>
+    </section>
+
+    <section class="w-full md:w-1/2 p-4 flex flex-col min-h-0">
+      <h2 class="text-lg font-medium mb-2">Diagram</h2>
+
+      <div
+        id="diagram"
+        class="flex-1 min-h-0 bg-white border border-gray-300 rounded overflow-auto"
       >
-        Compile
-      </button>
-    </header>
+      </div>
+    </section>
+  </main>
 
-    <main class="flex flex-1 min-h-0">
-      <section
-        class="w-full md:w-1/2 border-r border-gray-300 p-4 flex flex-col min-h-0"
-      >
-        <h2 class="text-lg font-medium mb-2">Editor</h2>
-
-        <div class="flex-1 min-h-0">
-          <Editor client:load />
-        </div>
-      </section>
-
-      <section class="w-full md:w-1/2 p-4 flex flex-col min-h-0">
-        <h2 class="text-lg font-medium mb-2">Diagram</h2>
-
-        <div
-          id="diagram"
-          class="flex-1 min-h-0 bg-white border border-gray-300 rounded overflow-auto"
-        >
-        </div>
-      </section>
-    </main>
-
-    <script>
-      window.addEventListener("editor-change", (e) => {
-        if (e instanceof CustomEvent) {
-          console.log("Contenido del editor:", e.detail);
-        }
-      });
-
-      document.getElementById("compileBtn")?.addEventListener("click", () => {
-        console.log("Compilar...");
-      });
-    </script>
-  </body>
-</html>
+  <script>
+    document.getElementById("compileBtn")?.addEventListener("click", () => {
+      console.log("Compilar...");
+    });
+  </script>
+</BaseLayout>
