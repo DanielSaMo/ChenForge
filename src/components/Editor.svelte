@@ -30,6 +30,7 @@
     });
 
     view = new EditorView({ state, parent: container });
+    window.editorView = view;
     return () => view.destroy();
   });
 </script>

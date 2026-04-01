@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Editor from "../components/Editor.svelte";
+import Compiler from "../components/Compiler.svelte";
 ---
 
 <BaseLayout title="ChenForge — ER Extended Generator">
@@ -12,7 +13,7 @@ import Editor from "../components/Editor.svelte";
       class="px-4 py-2 rounded text-white
       bg-blue-600 hover:bg-blue-700
       active:bg-blue-800 active:scale-[0.98]
-        transition-all duration-75"
+      transition-all duration-75"
     >
       Compile
     </button>
@@ -36,13 +37,8 @@ import Editor from "../components/Editor.svelte";
         id="diagram"
         class="flex-1 min-h-0 bg-white border border-gray-300 rounded overflow-auto"
       >
+        <Compiler client:only="svelte" />
       </div>
     </section>
   </main>
-
-  <script>
-    document.getElementById("compileBtn")?.addEventListener("click", () => {
-      console.log("Compilar...");
-    });
-  </script>
 </BaseLayout>
