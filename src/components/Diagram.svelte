@@ -1,16 +1,34 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { renderDiagram } from "../diagram/renderer";
-  import type { GraphModel } from "../core/graph";
+  import { parseDSL } from "../dsl";
+  import { astToGraph } from "../core/transform";
+  import { graphToDOT } from "../diagram/dot";
+  import { generateSVG } from "../diagram/graphviz";
 
-  export let model: GraphModel;
-  export let positions: Record<string, { x: number; y: number }>;
-
-  let container: HTMLDivElement;
+  let svg: string | null = null;
+  let diagramKey = 0;
 
   onMount(() => {
-    renderDiagram(container, model, positions);
+    document
+      .getElementById("compileBtn")
+      ?.addEventListener("click", async () => {
+        const code = window.editorView.state.doc.toString();
+
+        const ast = parseDSL(code);
+        const graph = astToGraph(ast);
+
+        const dot = graphToDOT(graph);
+        svg = await generateSVG(dot);
+
+        diagramKey += 1;
+      });
   });
 </script>
 
-<div bind:this={container} class="w-full h-full"></div>
+<div class="w-full h-full">
+  {#if svg}
+    {#key diagramKey}
+      {@html svg}
+    {/key}
+  {/if}
+</div>

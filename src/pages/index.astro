@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Editor from "../components/Editor.svelte";
-import Compiler from "../components/Compiler.svelte";
+import Diagram from "../components/Diagram.svelte";
 ---
 
 <BaseLayout title="ChenForge — ER Extended Generator">
@@ -37,7 +37,7 @@ import Compiler from "../components/Compiler.svelte";
         id="diagram"
         class="flex-1 min-h-0 bg-white border border-gray-300 rounded overflow-auto"
       >
-        <Compiler client:only="svelte" />
+        <Diagram client:only="svelte" />
       </div>
     </section>
   </main>
