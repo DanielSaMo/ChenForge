@@ -3,32 +3,45 @@
   import { parseDSL } from "../dsl";
   import { astToGraph } from "../core/transform";
   import { graphToDOT } from "../diagram/dot";
-  import { generateSVG } from "../diagram/graphviz";
+  import { graphviz } from "d3-graphviz";
 
-  let svg: string | null = null;
-  let diagramKey = 0;
+  import DiagramToolbar from "./DiagramToolbar.svelte";
+
+  let container: HTMLDivElement;
+  let renderer: any;
 
   onMount(() => {
-    document
-      .getElementById("compileBtn")
-      ?.addEventListener("click", async () => {
-        const code = window.editorView.state.doc.toString();
+    const btn = document.getElementById("compileBtn");
+    if (!btn) return;
 
-        const ast = parseDSL(code);
-        const graph = astToGraph(ast);
+    renderer = graphviz(container, {
+      zoom: true,
+      fit: true,
+      useWorker: false,
+    });
 
-        const dot = graphToDOT(graph);
-        svg = await generateSVG(dot);
+    renderer.on("end", () => {
+      const svg = container.querySelector("svg");
+      if (!svg) return;
 
-        diagramKey += 1;
-      });
+      svg.removeAttribute("width");
+      svg.removeAttribute("height");
+      svg.style.width = "100%";
+      svg.style.height = "100%";
+    });
+
+    btn.addEventListener("click", () => {
+      const code = window.editorView.state.doc.toString();
+      const ast = parseDSL(code);
+      const graph = astToGraph(ast);
+      const dot = graphToDOT(graph);
+
+      renderer.engine("dot").renderDot(dot);
+    });
   });
 </script>
 
-<div class="w-full h-full">
-  {#if svg}
-    {#key diagramKey}
-      {@html svg}
-    {/key}
-  {/if}
+<div class="relative w-full h-full overflow-hidden">
+  <div bind:this={container} class="w-full h-full"></div>
+  <DiagramToolbar {renderer} />
 </div>
