@@ -1,0 +1,14 @@
+@top Program { entityDecl* }
+
+entityDecl[@name=entityDecl] {
+  Entity Identifier
+}
+
+@tokens {
+  Entity { "entity" }
+  Identifier { $[a-zA-Z_] $[a-zA-Z0-9_]* }
+  Newline { $[\n]+ }
+  WhiteSpace { $[ \t\r]+ }
+}
+
+@skip { WhiteSpace | Newline }

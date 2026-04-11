@@ -1,11 +1,11 @@
-import type { AST } from "../dsl/ast";
+import type { AST } from "../dsl/core";
 import type { GraphModel } from "./graph";
 
 export function astToGraph(ast: AST): GraphModel {
   return {
-    entities: ast.entities.map(name => ({
-      id: `ent_${name}`,
-      name
+    entities: ast.entities.map(entitie => ({
+      id: `ent_${entitie.name}`,
+      name: entitie.name
     }))
   };
 }

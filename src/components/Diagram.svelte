@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { parseDSL } from "../dsl";
+  import { parseDSL } from "../dsl/parse";
   import { astToGraph } from "../core/transform";
   import { graphToDOT } from "../diagram/dot";
   import { graphviz } from "d3-graphviz";
