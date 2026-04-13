@@ -10,6 +10,16 @@ export const dslHighlight = syntaxHighlighting(
     {
       tag: tags.variableName,
       color: "#50fa7b"
+    },
+    {
+      tag: tags.lineComment,
+      color: "#6272a4",
+      fontStyle: "italic"
+    },
+    {
+      tag: tags.invalid,
+      color: "#ff5555",
+      textDecoration: "underline wavy"
     }
   ])
 );

@@ -5,4 +5,5 @@ export const
   Program = 3,
   entityDecl = 4,
   Entity = 5,
-  Identifier = 6
+  Identifier = 6,
+  LineComment = 7

@@ -1,4 +1,4 @@
-@top Program { entityDecl* }
+@top Program { (entityDecl | LineComment)* }
 
 entityDecl[@name=entityDecl] {
   Entity Identifier
@@ -6,7 +6,11 @@ entityDecl[@name=entityDecl] {
 
 @tokens {
   Entity { "entity" }
-  Identifier { $[a-zA-Z_] $[a-zA-Z0-9_]* }
+  Identifier {
+    $[A-Za-z_\u{00C0}-\u{10FFFF}]
+    $[A-Za-z0-9_\u{00C0}-\u{10FFFF}]*
+  }
+  LineComment { "//" ![\n]* }
   Newline { $[\n]+ }
   WhiteSpace { $[ \t\r]+ }
 }
