@@ -1,40 +1,69 @@
 import { parser } from "./dsl-parser";
-import type { AST, EntityNode, ParseError } from "./core";
+import type { AST, ParseError } from "./core";
+import { DSL_SCHEMA, type NodeSpec } from "./dsl-schema";
+
+function specByLezerNode(nodeName: string): NodeSpec | undefined {
+  return DSL_SCHEMA.nodes.find(s => s.lezerNode === nodeName);
+}
 
 export function parseDSL(input: string): AST {
   const tree = parser.parse(input);
-  const entities: EntityNode[] = [];
-  const errors: ParseError[] = [];
 
-  const seen = new Map<string, { from: number; to: number }>();
+  const ast = {
+    errors: [] as ParseError[]
+  } as Partial<AST>;
+
+  for (const spec of DSL_SCHEMA.nodes) {
+    (ast as any)[spec.astCollection] = [];
+  }
+
+  const finalAst = ast as AST;
+
+  const scopes = new Map<string, Map<string, { from: number; to: number }>>();
+  for (const spec of DSL_SCHEMA.nodes) {
+    scopes.set(spec.astCollection, new Map());
+  }
 
   tree.cursor().iterate(node => {
-    if (node.type.name === "entityDecl") {
-      if (node.node.getChild("⚠")) {
-        errors.push({
-          message: "Invalid entity declaration. Expected: entity name",
-          from: node.from,
-          to: node.to
-        });
-        return;
-      }
+    const spec = specByLezerNode(node.type.name);
+    if (!spec) return;
 
-      const id = node.node.getChild("Identifier")!;
-      const name = input.slice(id.from, id.to);
-
-      if (seen.has(name)) {
-        errors.push({
-          message: `Duplicate entity name '${name}'`,
-          from: id.from,
-          to: id.to
-        });
-      } else {
-        seen.set(name, { from: id.from, to: id.to });
-      }
-
-      entities.push({ name });
+    if (node.node.getChild("⚠")) {
+      finalAst.errors.push({
+        message: spec.missingIdMessage,
+        from: node.from,
+        to: node.to
+      });
+      return;
     }
+
+    const idNode = node.node.getChild(spec.idField.child);
+    if (!idNode) {
+      finalAst.errors.push({
+        message: spec.missingIdMessage,
+        from: node.from,
+        to: node.to
+      });
+      return;
+    }
+
+    const name = input.slice(idNode.from, idNode.to);
+
+    const scope = scopes.get(spec.astCollection)!;
+    if (scope.has(name)) {
+      finalAst.errors.push({
+        message: spec.duplicateIdMessage(name),
+        from: idNode.from,
+        to: idNode.to
+      });
+    } else {
+      scope.set(name, { from: idNode.from, to: idNode.to });
+    }
+
+    (finalAst as any)[spec.astCollection].push({
+      [spec.idField.astField]: name
+    });
   });
 
-  return { entities, errors };
+  return finalAst;
 }

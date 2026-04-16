@@ -1,30 +1,82 @@
-import { LRLanguage, LanguageSupport, syntaxTree } from "@codemirror/language";
+import {
+  LRLanguage,
+  LanguageSupport,
+  syntaxTree
+} from "@codemirror/language";
 import { styleTags, tags as t } from "@lezer/highlight";
-import type { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
+import type {
+  CompletionContext,
+  CompletionResult
+} from "@codemirror/autocomplete";
+import type { SyntaxNodeRef } from "@lezer/common";
 import { parser } from "./dsl-parser";
 import { DSL } from "./core";
 import { dslLinter } from "./linter";
+import { DSL_SCHEMA, type NodeSpec } from "./dsl-schema";
 
-function shouldSuggestEntityName(context: CompletionContext): boolean {
+function specByLezerNode(nodeName: string): NodeSpec | undefined {
+  return DSL_SCHEMA.nodes.find(s => s.lezerNode === nodeName);
+}
+
+function keywordFallback(from: number): CompletionResult {
+  return {
+    from,
+    options: DSL.keywords.map(k => ({
+      label: k,
+      type: "keyword",
+      info: "DSL keyword"
+    }))
+  };
+}
+
+function shouldSuggestFromSpec(node: SyntaxNodeRef, spec: NodeSpec): boolean {
+  const hasAllPrefixes = spec.prefixChildren.every(prefix =>
+    !!node.node.getChild(prefix)
+  );
+
+  const hasId = !!node.node.getChild(spec.idField.child);
+
+  return hasAllPrefixes && !hasId;
+}
+
+function autocompleteFromSchema(context: CompletionContext): CompletionResult | null {
   const tree = syntaxTree(context.state);
   const pos = context.pos;
 
-  let suggest = false;
+  const word = context.matchBefore(/[\w\u00C0-\uFFFF]+/u);
+  const from = word ? word.from : pos;
 
-  tree.iterate({
-    enter(node) {
-      if (node.type.name === "entityDecl" && node.from <= pos && node.to >= pos) {
-        const hasEntity = !!node.node.getChild("Entity");
-        const hasIdentifier = !!node.node.getChild("Identifier");
+  let node = tree.resolve(pos, -1);
 
-        if (hasEntity && !hasIdentifier) {
-          suggest = true;
+  let spec = specByLezerNode(node.type.name);
+  while (!spec && node.parent) {
+    node = node.parent;
+    spec = specByLezerNode(node.type.name);
+  }
+
+  if (!spec) return keywordFallback(from);
+
+  const ref: SyntaxNodeRef = {
+    from: node.from,
+    to: node.to,
+    type: node.type,
+    node
+  } as SyntaxNodeRef;
+
+  if (shouldSuggestFromSpec(ref, spec)) {
+    return {
+      from,
+      options: [
+        {
+          label: spec.autocompleteName.label,
+          type: "variable",
+          info: spec.autocompleteName.info
         }
-      }
-    }
-  });
+      ]
+    };
+  }
 
-  return suggest;
+  return keywordFallback(from);
 }
 
 const dslLanguage = LRLanguage.define({
@@ -39,34 +91,7 @@ const dslLanguage = LRLanguage.define({
   }),
 
   languageData: {
-    autocomplete(context: CompletionContext): CompletionResult | null {
-      const word = context.matchBefore(/[\w\u00C0-\uFFFF]+/u);
-      const from = word ? word.from : context.pos;
-
-      if (shouldSuggestEntityName(context)) {
-        return {
-          from,
-          options: [
-            {
-              label: "name",
-              type: "variable",
-              info: "Name of the new entity"
-            }
-          ]
-        };
-      }
-
-      const options = DSL.keywords.map(k => ({
-        label: k,
-        type: "keyword" as const,
-        info: "DSL keyword"
-      }));
-
-      return {
-        from,
-        options
-      };
-    }
+    autocomplete: autocompleteFromSchema
   }
 });
 
