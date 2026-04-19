@@ -1,5 +1,13 @@
-export interface EntityNode {
+interface EntityNode {
   name: string;
+}
+
+type AttributeKind = "PK" | "UK" | "OP" | "DR" | "SP" | "CP";
+
+interface AttributeNode {
+  entity: string;
+  names: string[];
+  kind: AttributeKind;
 }
 
 export interface ParseError {
@@ -10,9 +18,10 @@ export interface ParseError {
 
 export interface AST {
   entities: EntityNode[];
+  attributes: AttributeNode[];
   errors: ParseError[];
 }
 
 export const DSL = {
-  keywords: ["entity"] as const
+  keywords: ["entity", "attribute"] as const
 };

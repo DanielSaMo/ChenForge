@@ -6,4 +6,7 @@ export const
   entityDecl = 4,
   Entity = 5,
   Identifier = 6,
-  LineComment = 7
+  attributeDecl = 7,
+  Attribute = 8,
+  AttributeType = 9,
+  LineComment = 10
