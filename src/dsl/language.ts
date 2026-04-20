@@ -9,31 +9,55 @@ import type {
   CompletionResult,
   Completion
 } from "@codemirror/autocomplete";
-import type { SyntaxNodeRef } from "@lezer/common";
+import type { SyntaxNodeRef, SyntaxNode } from "@lezer/common";
+import type { EditorState } from "@codemirror/state";
+
 import { parser } from "./dsl-parser";
-import { DSL } from "./core";
+import { DSL, type AST } from "./core";
 import { dslLinter } from "./linter";
-import { DSL_SCHEMA, type NodeSpec } from "./dsl-schema";
+import {
+  DSL_SCHEMA,
+  type NodeSpec,
+  isScopeField,
+  isIdField,
+  isEnumField,
+  isPrefixField
+} from "./dsl-schema";
 import { parseDSL } from "./parse";
+
+type SpecAtPosition = { spec: NodeSpec; ref: SyntaxNodeRef };
 
 function specByLezerNode(nodeName: string): NodeSpec | undefined {
   return DSL_SCHEMA.nodes.find(s => s.lezerNode === nodeName);
 }
 
-function keywordFallback(from: number): CompletionResult {
-  return {
-    from,
-    options: DSL.keywords.map(k => ({
-      label: k,
-      type: "keyword",
-      info: "DSL keyword"
-    }))
-  };
+function createCompletionResult(
+  from: number,
+  options: Completion[]
+): CompletionResult {
+  return { from, options };
 }
 
-function getSpecAtPosition(
-  context: CompletionContext
-): { spec: NodeSpec; ref: SyntaxNodeRef } | null {
+function keywordFallback(from: number): CompletionResult {
+  const options: Completion[] = DSL.keywords.map(k => ({
+    label: k,
+    type: "keyword",
+    info: "DSL keyword"
+  }));
+
+  return createCompletionResult(from, options);
+}
+
+function toRef(node: SyntaxNode): SyntaxNodeRef {
+  return {
+    from: node.from,
+    to: node.to,
+    type: node.type,
+    node
+  } as SyntaxNodeRef;
+}
+
+function getSpecAtPosition(context: CompletionContext): SpecAtPosition | null {
   const tree = syntaxTree(context.state);
   const pos = context.pos;
 
@@ -47,18 +71,25 @@ function getSpecAtPosition(
 
   if (!spec) return null;
 
-  const ref: SyntaxNodeRef = {
-    from: node.from,
-    to: node.to,
-    type: node.type,
-    node
-  } as SyntaxNodeRef;
-
-  return { spec, ref };
+  return { spec, ref: toRef(node) };
 }
 
 function hasAllPrefixes(spec: NodeSpec, ref: SyntaxNodeRef): boolean {
-  return spec.prefixChildren.every(prefix => !!ref.node.getChild(prefix));
+  const prefixFields = spec.fields.filter(isPrefixField);
+  return prefixFields.every(prefix => !!ref.node.getChild(prefix.child));
+}
+
+let lastDocText: string | null = null;
+let lastAst: AST | null = null;
+
+function getParsedAST(state: EditorState): AST {
+  const text = state.doc.toString();
+  if (text === lastDocText && lastAst) return lastAst;
+
+  const ast = parseDSL(text);
+  lastDocText = text;
+  lastAst = ast;
+  return ast;
 }
 
 function suggestScopeField(
@@ -67,38 +98,34 @@ function suggestScopeField(
   from: number,
   context: CompletionContext
 ): CompletionResult | null {
-  if (!spec.scopeField) return null;
+  const scopeField = spec.fields.find(isScopeField);
+  if (!scopeField) return null;
 
-  const sf = spec.scopeField;
-  const existing = ref.node.getChildren(sf.child);
-
+  const existing = ref.node.getChildren(scopeField.child);
   if (existing.length > 0) return null;
 
-  const doc = context.state.doc.toString();
-  const ast = parseDSL(doc);
-  const collection = (ast as any)[sf.refCollection] as any[];
+  const ast = getParsedAST(context.state) as any;
+  const collection = ast[scopeField.refCollection] as any[] | undefined;
 
-  if (collection.length > 0) {
+  if (collection && collection.length > 0) {
     const options: Completion[] = collection.map(item => ({
-      label: String(item[sf.refField]),
+      label: String(item[scopeField.refField]),
       type: "variable",
-      info: `Existing ${String(sf.refCollection).slice(0, -1)}`
+      info: `Existing ${String(scopeField.refCollection).slice(0, -1)}`
     }));
 
-    return { from, options };
+    return createCompletionResult(from, options);
   }
 
   if (spec.scopeAutocompleteName) {
-    return {
-      from,
-      options: [
-        {
-          label: spec.scopeAutocompleteName.label,
-          type: "variable",
-          info: spec.scopeAutocompleteName.info
-        }
-      ]
-    };
+    const { label, info } = spec.scopeAutocompleteName;
+    return createCompletionResult(from, [
+      {
+        label,
+        type: "variable",
+        info
+      }
+    ]);
   }
 
   return null;
@@ -109,15 +136,13 @@ function suggestIdField(
   ref: SyntaxNodeRef,
   from: number
 ): CompletionResult | null {
-  if (!spec.idField || !spec.autocompleteName) return null;
+  const idField = spec.fields.find(isIdField);
+  if (!idField || !spec.autocompleteName) return null;
 
-  const idf = spec.idField;
+  const all = ref.node.getChildren(idField.child);
+  const effective = idField.skipFirst ? all.slice(1) : all;
 
-  const all = ref.node.getChildren(idf.child);
-  const effective = idf.skipFirst ? all.slice(1) : all;
-
-  const hasId = effective.length > 0;
-  if (hasId) return null;
+  if (effective.length > 0) return null;
 
   const base = spec.autocompleteName.label;
 
@@ -129,7 +154,7 @@ function suggestIdField(
     }
   ];
 
-  if (idf.multiple) {
+  if (idField.multiple) {
     options.push({
       label: `${base}1, ${base}2`,
       type: "variable",
@@ -137,32 +162,27 @@ function suggestIdField(
     });
   }
 
-  return { from, options };
+  return createCompletionResult(from, options);
 }
 
-function suggestExtraEnumField(
+function suggestEnumField(
   spec: NodeSpec,
   ref: SyntaxNodeRef,
   from: number
 ): CompletionResult | null {
-  if (!spec.extraFields) return null;
+  const enumField = spec.fields.find(isEnumField);
+  if (!enumField || !enumField.enumOptions?.length) return null;
 
-  for (const f of spec.extraFields) {
-    const existing = ref.node.getChildren(f.child);
-    if (existing.length > 0) continue;
+  const existing = ref.node.getChildren(enumField.child);
+  if (existing.length > 0) return null;
 
-    if (!f.enumOptions || f.enumOptions.length === 0) continue;
+  const options: Completion[] = enumField.enumOptions.map(opt => ({
+    label: opt.value,
+    type: "type",
+    info: opt.info ?? opt.label
+  }));
 
-    const options: Completion[] = f.enumOptions.map(opt => ({
-      label: opt.value,
-      type: "type",
-      info: opt.info ?? opt.label
-    }));
-
-    return { from, options };
-  }
-
-  return null;
+  return createCompletionResult(from, options);
 }
 
 function autocompleteFromSchema(
@@ -178,16 +198,12 @@ function autocompleteFromSchema(
 
   if (!hasAllPrefixes(spec, ref)) return keywordFallback(from);
 
-  const scopeResult = suggestScopeField(spec, ref, from, context);
-  if (scopeResult) return scopeResult;
-
-  const idResult = suggestIdField(spec, ref, from);
-  if (idResult) return idResult;
-
-  const extraResult = suggestExtraEnumField(spec, ref, from);
-  if (extraResult) return extraResult;
-
-  return keywordFallback(from);
+  return (
+    suggestScopeField(spec, ref, from, context) ??
+    suggestIdField(spec, ref, from) ??
+    suggestEnumField(spec, ref, from) ??
+    keywordFallback(from)
+  );
 }
 
 const dslLanguage = LRLanguage.define({
@@ -202,7 +218,6 @@ const dslLanguage = LRLanguage.define({
       })
     ]
   }),
-
   languageData: {
     autocomplete: autocompleteFromSchema
   }

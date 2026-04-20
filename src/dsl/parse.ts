@@ -1,16 +1,15 @@
 import { parser } from "./dsl-parser";
 import type { AST, ParseError } from "./core";
-import { DSL_SCHEMA, type NodeSpec } from "./dsl-schema";
+import {
+  DSL_SCHEMA,
+  type NodeSpec,
+  type AnyField,
+  isIdField,
+  isScopeField,
+  isPrefixField
+} from "./dsl-schema";
 
-function specByLezerNode(nodeName: string): NodeSpec | undefined {
-  return DSL_SCHEMA.nodes.find(s => s.lezerNode === nodeName);
-}
-
-type AnyFieldSpec =
-  | NodeSpec["idField"]
-  | NodeSpec["scopeField"]
-  | NonNullable<NodeSpec["extraFields"]>[number]
-  | undefined;
+import type { SyntaxNode } from "@lezer/common";
 
 interface FieldValueWithPos {
   value: string;
@@ -18,19 +17,43 @@ interface FieldValueWithPos {
   to: number;
 }
 
+interface ExtractedNode {
+  spec: NodeSpec;
+  node: SyntaxNode;
+  record: any;
+  fieldPositions: Record<string, FieldValueWithPos[]>;
+}
+
 interface PendingScopeRef {
   spec: NodeSpec;
+  field: AnyField;
   value: string;
   from: number;
   to: number;
 }
 
-function collectFieldValues(
+function specByLezerNode(nodeName: string): NodeSpec | undefined {
+  return DSL_SCHEMA.nodes.find(s => s.lezerNode === nodeName);
+}
+
+function ensureAstCollections(ast: Partial<AST>): asserts ast is AST {
+  for (const spec of DSL_SCHEMA.nodes) {
+    const key = spec.astCollection;
+    if (!(ast as any)[key]) {
+      (ast as any)[key] = [];
+    }
+  }
+  if (!ast.errors) {
+    (ast as any).errors = [];
+  }
+}
+
+function extractFieldValues(
   input: string,
-  node: import("@lezer/common").SyntaxNode,
-  field: AnyFieldSpec
+  node: SyntaxNode,
+  field: AnyField
 ): FieldValueWithPos[] | undefined {
-  if (!field) return undefined;
+  if (isPrefixField(field)) return undefined;
 
   const children = node.getChildren(field.child);
   if (!children.length) return field.multiple ? [] : undefined;
@@ -56,47 +79,21 @@ function collectFieldValues(
   }));
 }
 
-function ensureAstCollections(ast: Partial<AST>): asserts ast is AST {
-  for (const spec of DSL_SCHEMA.nodes) {
-    const key = spec.astCollection;
-    if (!(ast as any)[key]) {
-      (ast as any)[key] = [];
-    }
-  }
-  if (!ast.errors) {
-    (ast as any).errors = [];
-  }
-}
-
-export function parseDSL(input: string): AST {
-  const tree = parser.parse(input);
-
-  const partialAst: Partial<AST> = {
-    errors: [] as ParseError[]
-  };
-
-  ensureAstCollections(partialAst);
-  const ast = partialAst as AST;
-
-  const uniquenessMaps = new Map<
-    NodeSpec,
-    Map<string, { from: number; to: number }>
-  >();
-
-  for (const spec of DSL_SCHEMA.nodes) {
-    if (spec.uniqueKeyFields && spec.uniqueKeyFields.length > 0) {
-      uniquenessMaps.set(spec, new Map());
-    }
-  }
-
+function extractNodes(input: string, root: SyntaxNode): {
+  extracted: ExtractedNode[];
+  pendingScopeRefs: PendingScopeRef[];
+  errors: ParseError[];
+} {
+  const extracted: ExtractedNode[] = [];
   const pendingScopeRefs: PendingScopeRef[] = [];
+  const errors: ParseError[] = [];
 
-  tree.cursor().iterate(node => {
+  root.cursor().iterate(node => {
     const spec = specByLezerNode(node.type.name);
     if (!spec) return;
 
     if (node.node.getChild("⚠")) {
-      ast.errors.push({
+      errors.push({
         message: spec.missingIdMessage,
         from: node.from,
         to: node.to
@@ -107,15 +104,21 @@ export function parseDSL(input: string): AST {
     const record: any = {};
     const fieldPositions: Record<string, FieldValueWithPos[]> = {};
 
-    if (spec.scopeField) {
-      const vals = collectFieldValues(input, node.node, spec.scopeField);
-      if (vals && vals.length > 0) {
-        record[spec.scopeField.astField] = vals.map(v => v.value);
-        fieldPositions[spec.scopeField.astField] = vals;
+    for (const field of spec.fields) {
+      if (isPrefixField(field)) continue;
 
+      const vals = extractFieldValues(input, node.node, field);
+      if (!vals || vals.length === 0 || !field.astField) continue;
+
+      const values = field.multiple ? vals.map(v => v.value) : vals[0].value;
+      record[field.astField] = values;
+      fieldPositions[field.astField] = vals;
+
+      if (isScopeField(field)) {
         for (const v of vals) {
           pendingScopeRefs.push({
             spec,
+            field,
             value: v.value,
             from: v.from,
             to: v.to
@@ -124,116 +127,162 @@ export function parseDSL(input: string): AST {
       }
     }
 
-    if (spec.idField) {
-      const vals = collectFieldValues(input, node.node, spec.idField);
-      if (vals && vals.length > 0) {
-        record[spec.idField.astField] = vals.map(v => v.value);
-        fieldPositions[spec.idField.astField] = vals;
+    extracted.push({ spec, node: node.node, record, fieldPositions });
+  });
+
+  return { extracted, pendingScopeRefs, errors };
+}
+
+function buildASTStructure(
+  extracted: ExtractedNode[],
+  ast: AST,
+  errors: ParseError[]
+) {
+  for (const { spec, node, record } of extracted) {
+    const idField = spec.fields.find(isIdField);
+
+    if (idField && idField.astField) {
+      const raw = record[idField.astField];
+      const ids: string[] = Array.isArray(raw)
+        ? raw
+        : raw
+          ? [raw]
+          : [];
+
+      if (ids.length === 0) {
+        errors.push({
+          message: spec.missingIdMessage,
+          from: node.from,
+          to: node.to
+        });
+        continue;
       }
-    }
-
-    if (spec.extraFields) {
-      for (const f of spec.extraFields) {
-        const vals = collectFieldValues(input, node.node, f);
-        if (vals && vals.length > 0) {
-          record[f.astField] = vals.map(v => v.value);
-          fieldPositions[f.astField] = vals;
-        }
-      }
-    }
-
-    const idsRaw = spec.idField ? record[spec.idField.astField] : undefined;
-    const ids: string[] = Array.isArray(idsRaw)
-      ? idsRaw
-      : idsRaw
-        ? [idsRaw]
-        : [];
-
-    if (spec.idField && ids.length === 0) {
-      ast.errors.push({
-        message: spec.missingIdMessage,
-        from: node.from,
-        to: node.to
-      });
-      return;
     }
 
     (ast as any)[spec.astCollection].push(record);
+  }
+}
 
-    const map = uniquenessMaps.get(spec);
-    if (map && spec.uniqueKeyFields && spec.idField) {
-      const idFieldName = spec.idField.astField;
+function validateUniqueness(
+  extracted: ExtractedNode[],
+  errors: ParseError[]
+) {
+  const maps = new Map<NodeSpec, Map<string, { from: number; to: number }>>();
 
-      for (const id of ids) {
-        const keyParts = spec.uniqueKeyFields.map(fieldName => {
-          if (fieldName === idFieldName) return id;
-          return record[fieldName];
+  for (const spec of DSL_SCHEMA.nodes) {
+    if (spec.uniqueKeyFields?.length) {
+      maps.set(spec, new Map());
+    }
+  }
+
+  for (const { spec, node, record, fieldPositions } of extracted) {
+    const map = maps.get(spec);
+    if (!map || !spec.uniqueKeyFields) continue;
+
+    const idField = spec.fields.find(isIdField);
+    if (!idField || !idField.astField) continue;
+
+    const raw = record[idField.astField];
+    const ids: string[] = Array.isArray(raw)
+      ? raw
+      : raw
+        ? [raw]
+        : [];
+
+    for (const id of ids) {
+      const keyParts = spec.uniqueKeyFields.map(fieldName => {
+        if (fieldName === idField.astField) return id;
+        return record[fieldName];
+      });
+
+      const key = keyParts.join("|");
+
+      if (map.has(key)) {
+        const posList = fieldPositions[idField.astField];
+        const pos = posList?.find(p => p.value === id);
+
+        const scopeField = spec.fields.find(isScopeField);
+        const scopeName =
+          scopeField && scopeField.astField
+            ? (Array.isArray(record[scopeField.astField])
+              ? record[scopeField.astField][0]
+              : record[scopeField.astField])
+            : undefined;
+
+        errors.push({
+          message: spec.duplicateIdMessage(id, scopeName),
+          from: pos?.from ?? node.from,
+          to: pos?.to ?? node.to
         });
-
-        const key = String(keyParts.join("|"));
-
-        if (map.has(key)) {
-          const posList = fieldPositions[idFieldName];
-          const pos = posList?.find(p => p.value === id);
-
-          ast.errors.push({
-            message: spec.duplicateIdMessage(
-              id,
-              spec.scopeField
-                ? record[spec.scopeField.astField]?.[0]
-                : undefined
-            ),
-            from: pos?.from ?? node.from,
-            to: pos?.to ?? node.to
-          });
-        } else {
-          map.set(key, { from: node.from, to: node.to });
-        }
+      } else {
+        map.set(key, { from: node.from, to: node.to });
       }
     }
-  });
+  }
+}
 
+function validateScopeReferences(
+  ast: AST,
+  pending: PendingScopeRef[],
+  errors: ParseError[]
+) {
   const refSets = new Map<string, Set<string>>();
 
   for (const spec of DSL_SCHEMA.nodes) {
-    if (!spec.scopeField) continue;
-    const sf = spec.scopeField;
-    const key = `${sf.refCollection}:${sf.refField}`;
+    for (const field of spec.fields.filter(isScopeField)) {
+      const key = `${field.refCollection}:${field.refField}`;
+      if (refSets.has(key)) continue;
 
-    if (refSets.has(key)) continue;
+      const refItems = (ast as any)[field.refCollection] as any[];
+      const set = new Set<string>(
+        refItems
+          .map(item => {
+            const v = item[field.refField];
+            return Array.isArray(v) ? v[0] : v;
+          })
+          .filter((v): v is string => typeof v === "string")
+      );
 
-    const refItems = (ast as any)[sf.refCollection] as any[];
-    const set = new Set<string>(
-      refItems
-        .map(item => {
-          const v = item[sf.refField];
-          if (Array.isArray(v)) return v[0];
-          return v;
-        })
-        .filter((v: unknown): v is string => typeof v === "string")
-    );
-
-    refSets.set(key, set);
+      refSets.set(key, set);
+    }
   }
 
-  for (const ref of pendingScopeRefs) {
-    const sf = ref.spec.scopeField;
-    if (!sf) continue;
+  for (const ref of pending) {
+    const field = ref.field;
+    if (!isScopeField(field)) continue;
 
-    const key = `${sf.refCollection}:${sf.refField}`;
-    const validNames = refSets.get(key);
-    if (!validNames) continue;
+    const key = `${field.refCollection}:${field.refField}`;
+    const valid = refSets.get(key);
+    if (!valid) continue;
 
-    if (!validNames.has(ref.value)) {
-      ast.errors.push({
+    if (!valid.has(ref.value)) {
+      errors.push({
         message: ref.spec.invalidScopeMessage
           ? ref.spec.invalidScopeMessage(ref.value)
-          : `Invalid reference '${ref.value}' for field '${sf.astField}'`,
+          : `Invalid reference '${ref.value}' for field '${field.astField}'`,
         from: ref.from,
         to: ref.to
       });
     }
   }
+}
 
+export function parseDSL(input: string): AST {
+  const tree = parser.parse(input);
+
+  const partialAst: Partial<AST> = { errors: [] };
+  ensureAstCollections(partialAst);
+  const ast = partialAst as AST;
+
+  const { extracted, pendingScopeRefs, errors } = extractNodes(
+    input,
+    tree.topNode
+  );
+
+  buildASTStructure(extracted, ast, errors);
+  validateUniqueness(extracted, errors);
+  validateScopeReferences(ast, pendingScopeRefs, errors);
+
+  ast.errors.push(...errors);
   return ast;
 }
