@@ -185,11 +185,72 @@ function suggestEnumField(
   return createCompletionResult(from, options);
 }
 
+function isCursorAtEndOfLine(state: EditorState, pos: number): boolean {
+  const line = state.doc.lineAt(pos);
+  return pos === line.to;
+}
+
+function isCommentLine(state: EditorState, pos: number): boolean {
+  const tree = syntaxTree(state);
+  const line = state.doc.lineAt(pos);
+
+  let isComment = false;
+
+  tree.iterate({
+    from: line.from,
+    to: line.to,
+    enter(cursor) {
+      if (cursor.name === "LineComment") {
+        isComment = true;
+        return false;
+      }
+    }
+  });
+
+  return isComment;
+}
+
+function isAfterCompletedStatement(state: EditorState, pos: number): boolean {
+  const tree = syntaxTree(state);
+  const line = state.doc.lineAt(pos);
+
+  let firstDeclEnd = -1;
+
+  tree.iterate({
+    from: line.from,
+    to: line.to,
+    enter(cursor) {
+      if (specByLezerNode(cursor.name)) {
+        if (firstDeclEnd === -1 || cursor.to < firstDeclEnd) {
+          firstDeclEnd = cursor.to;
+        }
+      }
+    }
+  });
+
+  return firstDeclEnd !== -1 && pos > firstDeclEnd;
+}
+
 function autocompleteFromSchema(
   context: CompletionContext
 ): CompletionResult | null {
+  const state = context.state;
+  const pos = context.pos;
+
+  if (!isCursorAtEndOfLine(state, pos)) {
+    return null;
+  }
+
+  if (isCommentLine(state, pos)) {
+    return null;
+  }
+
+  if (isAfterCompletedStatement(state, pos)) {
+    return null;
+  }
+
   const word = context.matchBefore(/[\w\u00C0-\uFFFF]+/u);
-  const from = word ? word.from : context.pos;
+  const from = word ? word.from : pos;
 
   const specInfo = getSpecAtPosition(context);
   if (!specInfo) return keywordFallback(from);

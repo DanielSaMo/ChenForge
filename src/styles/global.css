@@ -26,3 +26,7 @@
 .cm-scroller {
   overflow: auto !important;
 }
+
+ul[aria-label="Completions"] > li[aria-selected="true"] {
+  background: #264f78 !important;
+}
