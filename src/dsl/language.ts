@@ -39,10 +39,10 @@ function createCompletionResult(
 }
 
 function keywordFallback(from: number): CompletionResult {
-  const options: Completion[] = DSL.keywords.map(k => ({
-    label: k,
+  const options: Completion[] = Object.values(DSL.keywords).map(k => ({
+    label: k.label,
     type: "keyword",
-    info: "DSL keyword"
+    info: k.info
   }));
 
   return createCompletionResult(from, options);

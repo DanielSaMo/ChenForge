@@ -145,12 +145,12 @@ export const DSL_SCHEMA: DSLSchema = {
       missingIdMessage:
         "Invalid attribute declaration. Expected: attribute entityName attributeName1, attributeName2 TYPE",
       duplicateIdMessage: (name, scope) =>
-        `Duplicate attribute name '${name}' for entity '${scope ?? "?"}' and type`,
+        `Duplicate attribute name '${name}' for entity '${scope ?? "?"}'`,
 
       invalidScopeMessage: name =>
         `Unknown entity '${name}' referenced in attribute declaration`,
 
-      uniqueKeyFields: ["entity", "kind", "names"],
+      uniqueKeyFields: ["entity", "names"],
 
       scopeAutocompleteName: {
         label: "entityName",

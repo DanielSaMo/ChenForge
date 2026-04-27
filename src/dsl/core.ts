@@ -23,5 +23,14 @@ export interface AST {
 }
 
 export const DSL = {
-  keywords: ["entity", "attribute"] as const
-};
+  keywords: {
+    entity: {
+      label: "entity",
+      info: "Declares a new entity in the data model"
+    },
+    attribute: {
+      label: "attribute",
+      info: "Declares one or more attributes for an existing entity"
+    }
+  }
+} as const;
