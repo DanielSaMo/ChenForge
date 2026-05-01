@@ -36,7 +36,7 @@
       const graph = astToGraph(ast);
       const dot = graphToDOT(graph);
 
-      renderer.engine("dot").renderDot(dot);
+      renderer.engine("neato").renderDot(dot);
     });
   });
 </script>

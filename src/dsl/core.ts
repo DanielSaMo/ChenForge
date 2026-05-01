@@ -2,7 +2,7 @@ interface EntityNode {
   name: string;
 }
 
-type AttributeKind = "PK" | "UK" | "OP" | "DR" | "SP" | "CP";
+export type AttributeKind = "PK" | "UK" | "OP" | "DR" | "SP" | "CP";
 
 interface AttributeNode {
   entity: string;
