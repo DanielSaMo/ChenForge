@@ -74,9 +74,19 @@ function getSpecAtPosition(context: CompletionContext): SpecAtPosition | null {
   return { spec, ref: toRef(node) };
 }
 
-function hasAllPrefixes(spec: NodeSpec, ref: SyntaxNodeRef): boolean {
+function hasAllPrefixes(
+  spec: NodeSpec,
+  ref: SyntaxNodeRef,
+  cursorPos: number
+): boolean {
   const prefixFields = spec.fields.filter(isPrefixField);
-  return prefixFields.every(prefix => !!ref.node.getChild(prefix.child));
+
+  return prefixFields.every(prefix => {
+    const child = ref.node.getChild(prefix.child);
+    if (!child) return false;
+
+    return cursorPos > child.to;
+  });
 }
 
 let lastDocText: string | null = null;
@@ -101,18 +111,34 @@ function suggestScopeField(
   const scopeField = spec.fields.find(isScopeField);
   if (!scopeField) return null;
 
-  const existing = ref.node.getChildren(scopeField.child);
-  if (existing.length > 0) return null;
-
   const ast = getParsedAST(context.state) as any;
   const collection = ast[scopeField.refCollection] as any[] | undefined;
 
+  const existing = ref.node.getChildren(scopeField.child);
+  let typed = "";
+
+  if (existing.length > 0) {
+    const child = existing[0].node;
+
+    if (!(context.pos >= child.from && context.pos <= child.to)) {
+      return null;
+    }
+
+    typed = context.state.sliceDoc(child.from, child.to);
+  } else {
+    if (context.pos !== from) return null;
+  }
+
   if (collection && collection.length > 0) {
-    const options: Completion[] = collection.map(item => ({
-      label: String(item[scopeField.refField]),
-      type: "variable",
-      info: `Existing ${String(scopeField.refCollection).slice(0, -1)}`
-    }));
+    const options: Completion[] = collection
+      .filter(item =>
+        String(item[scopeField.refField]).startsWith(typed)
+      )
+      .map(item => ({
+        label: String(item[scopeField.refField]),
+        type: "variable",
+        info: `Existing ${String(scopeField.refCollection).slice(0, -1)}`
+      }));
 
     return createCompletionResult(from, options);
   }
@@ -120,11 +146,7 @@ function suggestScopeField(
   if (spec.scopeAutocompleteName) {
     const { label, info } = spec.scopeAutocompleteName;
     return createCompletionResult(from, [
-      {
-        label,
-        type: "variable",
-        info
-      }
+      { label, type: "variable", info }
     ]);
   }
 
@@ -257,13 +279,12 @@ function autocompleteFromSchema(
 
   const { spec, ref } = specInfo;
 
-  if (!hasAllPrefixes(spec, ref)) return keywordFallback(from);
+  if (!hasAllPrefixes(spec, ref, pos)) return keywordFallback(from);
 
   return (
     suggestScopeField(spec, ref, from, context) ??
     suggestIdField(spec, ref, from) ??
-    suggestEnumField(spec, ref, from) ??
-    keywordFallback(from)
+    suggestEnumField(spec, ref, from)
   );
 }
 

@@ -189,34 +189,38 @@ function validateUniqueness(
         ? [raw]
         : [];
 
-    for (const id of ids) {
+    const posList = fieldPositions[idField.astField] ?? [];
+
+    const scopeField = spec.fields.find(isScopeField);
+    const scopeName =
+      scopeField && scopeField.astField
+        ? (Array.isArray(record[scopeField.astField])
+          ? record[scopeField.astField][0]
+          : record[scopeField.astField])
+        : undefined;
+
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      const pos = posList[i] ?? { from: node.from, to: node.to };
+
       const keyParts = spec.uniqueKeyFields.map(fieldName => {
         if (fieldName === idField.astField) return id;
         return record[fieldName];
       });
 
       const key = keyParts.join("|");
+      const existing = map.get(key);
 
-      if (map.has(key)) {
-        const posList = fieldPositions[idField.astField];
-        const pos = posList?.find(p => p.value === id);
-
-        const scopeField = spec.fields.find(isScopeField);
-        const scopeName =
-          scopeField && scopeField.astField
-            ? (Array.isArray(record[scopeField.astField])
-              ? record[scopeField.astField][0]
-              : record[scopeField.astField])
-            : undefined;
-
-        errors.push({
-          message: spec.duplicateIdMessage(id, scopeName),
-          from: pos?.from ?? node.from,
-          to: pos?.to ?? node.to
-        });
-      } else {
-        map.set(key, { from: node.from, to: node.to });
+      if (!existing) {
+        map.set(key, { from: pos.from, to: pos.to });
+        continue;
       }
+
+      errors.push({
+        message: spec.duplicateIdMessage(id, scopeName),
+        from: pos.from,
+        to: pos.to
+      });
     }
   }
 }
