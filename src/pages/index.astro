@@ -1,44 +1,8 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Editor from "../components/Editor.svelte";
-import Diagram from "../components/Diagram.svelte";
+import AppShell from "../components/app/AppShell.svelte";
 ---
 
-<BaseLayout title="ChenForge — ER Extended Generator">
-  <header class="p-4 bg-white shadow flex items-center justify-between">
-    <h1 class="text-xl font-semibold">ChenForge</h1>
-
-    <button
-      id="compileBtn"
-      class="px-4 py-2 rounded-md font-medium text-white
-        bg-blue-600 hover:bg-blue-700
-        active:bg-blue-800 active:scale-[0.97]
-        shadow-sm hover:shadow transition-all duration-150"
-    >
-      Compile
-    </button>
-  </header>
-
-  <main class="flex flex-1 min-h-0">
-    <section
-      class="w-full md:w-1/2 border-r border-gray-300 p-4 flex flex-col min-h-0"
-    >
-      <h2 class="text-lg font-medium mb-2">Editor</h2>
-
-      <div class="flex-1 min-h-0">
-        <Editor client:only="svelte" initial="// Write your DSL here..." />
-      </div>
-    </section>
-
-    <section class="w-full md:w-1/2 p-4 flex flex-col min-h-0">
-      <h2 class="text-lg font-medium mb-2">Diagram</h2>
-
-      <div
-        id="diagram"
-        class="flex-1 min-h-0 bg-white border border-gray-300 rounded overflow-auto"
-      >
-        <Diagram client:only="svelte" />
-      </div>
-    </section>
-  </main>
+<BaseLayout title="ChenForge - ER Extended Generator">
+  <AppShell client:only="svelte" />
 </BaseLayout>

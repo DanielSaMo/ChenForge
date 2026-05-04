@@ -1,4 +1,4 @@
-import type { AST } from "../dsl/core";
+import type { AST } from "../dsl/model";
 import type { GraphModel, GraphEntity, GraphAttribute } from "./graph";
 
 export function astToGraph(ast: AST): GraphModel {
@@ -39,7 +39,7 @@ function dedupeAttributes(attributes: AST["attributes"]): AST["attributes"] {
     const seen = seenByEntity.get(entity)!;
 
     if (attr.kind === "CP") {
-      const key = attr.names.join("_");
+      const key = attr.composition ?? attr.names.join("_");
       if (!seen.has(key)) {
         seen.add(key);
         result.push(attr);
@@ -72,13 +72,14 @@ function toGraphEntity(ent: AST["entities"][number]): GraphEntity {
 
 function astAttributeToGraph(attr: AST["attributes"][number]): GraphAttribute[] {
   if (attr.kind === "CP") {
-    const key = attr.names.join("_");
+    const key = attr.composition ?? attr.names.join("_");
     return [
       {
         id: `attr_${attr.entity}_${attr.kind}_${key}`,
         entityId: `ent_${attr.entity}`,
         names: attr.names,
-        kind: attr.kind
+        kind: attr.kind,
+        composition: attr.composition
       }
     ];
   }
@@ -87,6 +88,7 @@ function astAttributeToGraph(attr: AST["attributes"][number]): GraphAttribute[] 
     id: `attr_${attr.entity}_${attr.kind}_${name}`,
     entityId: `ent_${attr.entity}`,
     names: [name],
-    kind: attr.kind
+    kind: attr.kind,
+    cardinality: attr.kind === "MV" ? attr.cardinality : undefined
   }));
 }

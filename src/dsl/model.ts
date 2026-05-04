@@ -2,12 +2,19 @@ interface EntityNode {
   name: string;
 }
 
-export type AttributeKind = "PK" | "UK" | "OP" | "DR" | "SP" | "CP";
+export type AttributeKind = "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV";
+
+export interface AttributeCardinality {
+  min: number;
+  max: number | "n";
+}
 
 interface AttributeNode {
   entity: string;
   names: string[];
   kind: AttributeKind;
+  composition?: string;
+  cardinality?: AttributeCardinality;
 }
 
 export interface ParseError {

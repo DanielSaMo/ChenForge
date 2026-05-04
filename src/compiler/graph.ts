@@ -1,4 +1,4 @@
-import type { AttributeKind } from "../dsl/core";
+import type { AttributeCardinality, AttributeKind } from "../dsl/model";
 
 export interface GraphEntity {
   id: string;
@@ -10,6 +10,8 @@ export interface GraphAttribute {
   entityId: string;
   names: string[];
   kind: AttributeKind;
+  composition?: string;
+  cardinality?: AttributeCardinality;
 }
 
 export interface GraphModel {

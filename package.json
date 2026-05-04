@@ -10,7 +10,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "build:dsl": "lezer-generator src/dsl/dsl.grammar -o src/dsl/dsl-parser.js"
+    "build:dsl": "lezer-generator src/dsl/grammar/dsl.grammar -o src/dsl/grammar/dsl-parser.js"
   },
   "dependencies": {
     "@astrojs/svelte": "^8.0.4",

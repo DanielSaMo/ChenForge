@@ -1,5 +1,6 @@
-import type { AttributeKind } from "../dsl/core";
-import type { GraphModel, GraphAttribute } from "../core/graph";
+import type { AttributeKind } from "../dsl/model";
+import type { GraphModel, GraphAttribute } from "../compiler/graph";
+import { dotId, dotString, dotXLabel } from "./dot-utils";
 
 interface AttributeStyle {
   node: string;
@@ -34,6 +35,7 @@ function attributeStyle(kind: AttributeKind): AttributeStyle {
 
     case "SP":
     case "CP":
+    case "MV":
       return {
         node: `style=solid`,
         edge: `style=solid`
@@ -43,13 +45,13 @@ function attributeStyle(kind: AttributeKind): AttributeStyle {
 
 function renderNode(id: string, label: string, style: string): string {
   return `
-  "${id}" [
+  ${dotId(id)} [
     shape=circle,
     width=0.3,
     height=0.3,
     fixedsize=true,
     label="",
-    xlabel="${label}",
+    ${dotXLabel(label)},
     ${style}
   ];`;
 }
@@ -59,13 +61,15 @@ function renderEdge(
   to: string,
   style: string,
   len = 1.0,
-  weight = 3
+  weight = 3,
+  extra = ""
 ): string {
   return `
-  "${from}" -- "${to}" [
+  ${dotId(from)} -- ${dotId(to)} [
     len=${len},
     weight=${weight},
     ${style}
+    ${extra}
   ];`;
 }
 
@@ -84,16 +88,24 @@ function renderSimple(attr: GraphAttribute): string {
 
   const id = attr.id;
   const label = attr.names[0];
+  const extra =
+    attr.kind === "MV" && attr.cardinality
+      ? `dir=forward,
+    arrowhead=normal,
+    taillabel=${dotString(formatCardinality(attr.cardinality))},
+    labeldistance=1.5,
+    labelangle=0`
+      : "";
 
   return [
     renderNode(id, label, node),
-    renderEdge(attr.entityId, id, edge)
+    renderEdge(attr.entityId, id, edge, 1.0, 3, extra)
   ].join("");
 }
 
 function renderComposite(attr: GraphAttribute): string {
-  const subNames = attr.names.slice(0, -1);
-  const finalName = attr.names[attr.names.length - 1];
+  const subNames = attr.composition ? attr.names : attr.names.slice(0, -1);
+  const finalName = attr.composition ?? attr.names[attr.names.length - 1];
 
   const style = attributeStyle("SP");
   const parts: string[] = [];
@@ -109,4 +121,10 @@ function renderComposite(attr: GraphAttribute): string {
   });
 
   return parts.join("");
+}
+
+function formatCardinality(
+  cardinality: NonNullable<GraphAttribute["cardinality"]>
+): string {
+  return `(${cardinality.min},${cardinality.max})`;
 }

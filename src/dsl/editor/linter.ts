@@ -1,5 +1,5 @@
 import { linter, type Diagnostic } from "@codemirror/lint";
-import { parseDSL } from "./parse";
+import { parseDSL } from "../parser";
 
 export const dslLinter = linter(view => {
   const diagnostics: Diagnostic[] = [];

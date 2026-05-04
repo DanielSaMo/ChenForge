@@ -1,80 +1,22 @@
-import type { AST } from "./core";
+import type { DSLSchema } from "./types";
 
-interface EnumOption {
-  value: string;
-  label: string;
-  info?: string;
-}
+export type {
+  AnyArgument,
+  AnyField,
+  CardinalityArgument,
+  DSLSchema,
+  IdArgument,
+  NodeSpec
+} from "./types";
 
-type FieldKind = "id" | "scope" | "enum" | "prefix";
-
-interface BaseField {
-  kind: FieldKind;
-  child: string;
-  astField?: string;
-  multiple?: boolean;
-  skipFirst?: boolean;
-}
-
-interface IdField extends BaseField {
-  kind: "id";
-  astField: string;
-}
-
-interface ScopeField extends BaseField {
-  kind: "scope";
-  astField: string;
-  refCollection: keyof AST;
-  refField: string;
-}
-
-interface EnumField extends BaseField {
-  kind: "enum";
-  astField: string;
-  enumOptions: EnumOption[];
-}
-
-interface PrefixField extends BaseField {
-  kind: "prefix";
-  astField?: undefined;
-}
-
-export type AnyField = IdField | ScopeField | EnumField | PrefixField;
-
-export const isIdField = (f: AnyField): f is IdField => f.kind === "id";
-export const isScopeField = (f: AnyField): f is ScopeField =>
-  f.kind === "scope";
-export const isEnumField = (f: AnyField): f is EnumField =>
-  f.kind === "enum";
-export const isPrefixField = (f: AnyField): f is PrefixField =>
-  f.kind === "prefix";
-
-export interface NodeSpec {
-  lezerNode: string;
-  astCollection: keyof AST;
-
-  fields: AnyField[];
-
-  missingIdMessage: string;
-  duplicateIdMessage: (name: string, scope?: string) => string;
-  invalidScopeMessage?: (name: string) => string;
-
-  uniqueKeyFields?: string[];
-
-  autocompleteName?: {
-    label: string;
-    info: string;
-  };
-
-  scopeAutocompleteName?: {
-    label: string;
-    info: string;
-  };
-}
-
-interface DSLSchema {
-  nodes: NodeSpec[];
-}
+export {
+  isCardinalityArgument,
+  isEnumField,
+  isIdArgument,
+  isIdField,
+  isPrefixField,
+  isScopeField
+} from "./types";
 
 export const DSL_SCHEMA: DSLSchema = {
   nodes: [
@@ -115,17 +57,16 @@ export const DSL_SCHEMA: DSLSchema = {
         },
         {
           kind: "scope",
-          child: "Identifier",
+          child: "EntityRef",
           astField: "entity",
           refCollection: "entities",
           refField: "name"
         },
         {
           kind: "id",
-          child: "Identifier",
+          child: "AttributeName",
           astField: "names",
-          multiple: true,
-          skipFirst: true
+          multiple: true
         },
         {
           kind: "enum",
@@ -137,8 +78,41 @@ export const DSL_SCHEMA: DSLSchema = {
             { value: "OP", label: "Optional" },
             { value: "DR", label: "Derived" },
             { value: "SP", label: "Simple" },
-            { value: "CP", label: "Composite" }
+            { value: "CP", label: "Composite" },
+            { value: "MV", label: "Multivalued" }
           ]
+        }
+      ],
+
+      arguments: [
+        {
+          kind: "id",
+          child: "CompositionArg",
+          astField: "composition",
+          when: { enumField: "kind", value: "CP" },
+          requiredMessage:
+            "Composite attribute requires a composition name after CP",
+          unexpectedMessage: kind =>
+            `Attribute type '${kind}' does not accept a composition name`,
+          autocompleteName: {
+            label: "compositionName",
+            info: "Name of the composite attribute"
+          },
+          uniqueKey: true
+        },
+        {
+          kind: "cardinality",
+          child: "CardinalityArg",
+          astField: "cardinality",
+          when: { enumField: "kind", value: "MV" },
+          requiredMessage:
+            "Multivalued attribute requires cardinality after MV. Expected: (min,max)",
+          unexpectedMessage: kind =>
+            `Attribute type '${kind}' does not accept cardinality arguments`,
+          autocompleteName: {
+            label: "(0,n)",
+            info: "Cardinality for a multivalued attribute"
+          }
         }
       ],
 

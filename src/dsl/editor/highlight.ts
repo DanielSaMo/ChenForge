@@ -16,6 +16,16 @@ export const dslHighlight = syntaxHighlighting(
       color: "#8be9fd"
     },
     {
+      tag: tags.number,
+      color: "#f1fa8c",
+      fontWeight: "600"
+    },
+    {
+      tag: tags.atom,
+      color: "#f1fa8c",
+      fontWeight: "600"
+    },
+    {
       tag: tags.lineComment,
       color: "#6272a4",
       fontStyle: "italic"

@@ -1,5 +1,6 @@
-import type { GraphModel } from "../core/graph";
+import type { GraphModel } from "../compiler/graph";
 import { renderAttributes } from "./attributes";
+import { dotId, dotLabel } from "./dot-utils";
 
 export function graphToDOT(model: GraphModel): string {
   let dot = openGraph();
@@ -13,7 +14,7 @@ export function graphToDOT(model: GraphModel): string {
 
 function renderEntities(model: GraphModel): string {
   return model.entities
-    .map(ent => `"${ent.id}" [shape=box, label="${ent.name}"];\n`)
+    .map(ent => `${dotId(ent.id)} [shape=box, ${dotLabel(ent.name)}];\n`)
     .join("");
 }
 
