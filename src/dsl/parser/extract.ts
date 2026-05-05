@@ -5,6 +5,7 @@ import {
   type AnyField,
   type NodeSpec,
   isCardinalityArgument,
+  isEnumField,
   isIdArgument,
   isPrefixField,
   isScopeField
@@ -117,11 +118,16 @@ function extractArguments(
 
     if (!argNode) {
       if (applies) {
-        errors.push({
-          message: arg.requiredMessage,
-          from: node.to,
-          to: node.to
-        });
+        const enumField = spec.fields.find(isEnumField);
+        const enumNode = enumField ? node.getChild(enumField.child) : null;
+
+        if (enumNode) {
+          errors.push({
+            message: arg.requiredMessage,
+            from: enumNode.from,
+            to: enumNode.to
+          });
+        }
       }
       continue;
     }

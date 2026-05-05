@@ -27,7 +27,7 @@ CardinalityArg {
 }
 
 CardinalityValue {
-  Number | Identifier
+  Number
 }
 
 @tokens {
@@ -39,7 +39,7 @@ CardinalityValue {
   }
 
   Number {
-    "-"? $[0-9]+
+    "-"? $[0-9]+ | "n"
   }
 
   Identifier {
