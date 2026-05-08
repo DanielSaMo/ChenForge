@@ -4,11 +4,14 @@ import type { CompletionContext } from "@codemirror/autocomplete";
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import type { AST } from "../model";
 import type { NodeSpec } from "../schema";
-import { isPrefixField } from "../schema";
 import { parseDSL } from "../parser";
 import { specByLezerNode } from "../schema/utils";
 
-export type SpecAtPosition = { spec: NodeSpec; ref: SyntaxNodeRef };
+type SpecAtPosition = {
+  spec: NodeSpec;
+  ref: SyntaxNodeRef;
+  missingChild: string | null;
+};
 
 let lastDocText: string | null = null;
 let lastAst: AST | null = null;
@@ -31,30 +34,51 @@ export function getSpecAtPosition(
   let node = tree.resolve(pos, -1);
   let spec = specByLezerNode(node.type.name);
 
-  while (!spec && node.parent) {
-    node = node.parent;
-    spec = specByLezerNode(node.type.name);
+  if (!spec && node.prevSibling) {
+    const line = context.state.doc.lineAt(pos);
+
+    if (node.prevSibling.from >= line.from) {
+      const deep = findSpecNodeDeep(node.prevSibling);
+
+      if (deep && pos >= node.prevSibling.to) {
+        node = deep;
+        spec = specByLezerNode(deep.type.name)!;
+      }
+    }
   }
 
-  return spec ? { spec, ref: toRef(node) } : null;
+  let climb = node;
+  while (!spec && climb.parent) {
+    climb = climb.parent;
+    const parentSpec = specByLezerNode(climb.type.name);
+    if (parentSpec) {
+      node = climb;
+      spec = parentSpec;
+      break;
+    }
+  }
+
+  if (!spec) return null;
+
+  const missingChild = detectMissingChild(node, spec, pos);
+  return { spec, ref: toRef(node), missingChild };
 }
 
-export function hasAllPrefixes(
-  spec: NodeSpec,
-  ref: SyntaxNodeRef,
-  cursorPos: number
-): boolean {
-  return spec.fields.filter(isPrefixField).every(prefix => {
-    const child = ref.node.getChild(prefix.child);
-    return !!child && cursorPos > child.to;
-  });
-}
+function findSpecNodeDeep(node: SyntaxNode): SyntaxNode | null {
+  const stack: SyntaxNode[] = [node];
 
-export function isCursorAtEndOfLine(
-  state: EditorState,
-  pos: number
-): boolean {
-  return pos === state.doc.lineAt(pos).to;
+  while (stack.length) {
+    const current = stack.pop()!;
+    if (specByLezerNode(current.type.name)) {
+      return current;
+    }
+
+    for (let child = current.firstChild; child; child = child.nextSibling) {
+      stack.push(child);
+    }
+  }
+
+  return null;
 }
 
 export function isCommentLine(state: EditorState, pos: number): boolean {
@@ -77,28 +101,30 @@ export function isCommentLine(state: EditorState, pos: number): boolean {
   return commentFrom !== -1 && pos >= commentFrom;
 }
 
-export function isAfterCompletedStatement(
-  state: EditorState,
+function detectMissingChild(
+  node: SyntaxNode,
+  spec: NodeSpec,
   pos: number
-): boolean {
-  const tree = syntaxTree(state);
-  const line = state.doc.lineAt(pos);
-  let firstDeclEnd = -1;
+): string | null {
+  for (const field of spec.fields) {
+    const child = node.getChild(field.child);
 
-  tree.iterate({
-    from: line.from,
-    to: line.to,
-    enter(cursor) {
-      if (specByLezerNode(cursor.name)) {
-        firstDeclEnd =
-          firstDeclEnd === -1 || cursor.to < firstDeclEnd
-            ? cursor.to
-            : firstDeclEnd;
-      }
-    }
-  });
+    if (!child) return field.child;
+    if (child.type.isError) return field.child;
 
-  return firstDeclEnd !== -1 && pos > firstDeclEnd;
+    if (pos >= child.from && pos <= child.to) return field.child;
+  }
+
+  const last = node.lastChild;
+  if (last && pos > last.to) {
+    const nextField = spec.fields.find(f => {
+      const child = node.getChild(f.child);
+      return !child || child.type.isError;
+    });
+    return nextField ? nextField.child : null;
+  }
+
+  return null;
 }
 
 function toRef(node: SyntaxNode): SyntaxNodeRef {

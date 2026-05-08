@@ -3,13 +3,11 @@ import type {
   CompletionContext,
   CompletionResult
 } from "@codemirror/autocomplete";
-import type { EditorState } from "@codemirror/state";
 import type { SyntaxNodeRef } from "@lezer/common";
 import { DSL } from "../model";
 import {
   type AnyArgument,
   type NodeSpec,
-  isCardinalityArgument,
   isEnumField,
   isIdField,
   isScopeField
@@ -124,29 +122,7 @@ export function suggestEnumField(
   );
 }
 
-export function suggestArgumentField(
-  spec: NodeSpec,
-  ref: SyntaxNodeRef,
-  from: number,
-  context: CompletionContext
-): CompletionResult | null {
-  const arg = findArgumentForEnum(spec, getEnumValue(spec, ref, context.state));
-  if (!arg || hasAnyArgument(spec, ref)) return null;
-
-  const enumField = spec.fields.find(isEnumField);
-  const enumNode = enumField ? ref.node.getChild(enumField.child) : null;
-  if (!enumNode || context.pos < enumNode.to) return null;
-
-  return isCardinalityArgument(arg)
-    ? suggestCardinalityArgument(argumentStart(from, context.pos, enumNode.to), arg)
-    : suggestNamedArgument(argumentStart(from, context.pos, enumNode.to), arg);
-}
-
-function argumentStart(from: number, pos: number, enumEnd: number): number {
-  return pos === enumEnd ? pos : from;
-}
-
-function suggestCardinalityArgument(
+export function suggestCardinalityArgument(
   from: number,
   arg: AnyArgument
 ): CompletionResult {
@@ -169,7 +145,7 @@ function suggestCardinalityArgument(
   ]);
 }
 
-function suggestNamedArgument(
+export function suggestNamedArgument(
   from: number,
   arg: AnyArgument
 ): CompletionResult | null {
@@ -182,28 +158,6 @@ function suggestNamedArgument(
       info: arg.autocompleteName.info
     }
   ]);
-}
-
-function getEnumValue(
-  spec: NodeSpec,
-  ref: SyntaxNodeRef,
-  state: EditorState
-): string | null {
-  const enumField = spec.fields.find(isEnumField);
-  const child = enumField ? ref.node.getChild(enumField.child) : null;
-  return child ? state.sliceDoc(child.from, child.to) : null;
-}
-
-function findArgumentForEnum(
-  spec: NodeSpec,
-  enumValue: string | null
-): AnyArgument | null {
-  if (!enumValue) return null;
-  return spec.arguments?.find(arg => arg.when.value === enumValue) ?? null;
-}
-
-function hasAnyArgument(spec: NodeSpec, ref: SyntaxNodeRef): boolean {
-  return (spec.arguments ?? []).some(arg => ref.node.getChild(arg.child));
 }
 
 function completionResult(
