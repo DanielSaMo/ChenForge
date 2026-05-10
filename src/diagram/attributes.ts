@@ -93,7 +93,7 @@ function renderSimple(attr: GraphAttribute): string {
       ? `dir=forward,
     arrowhead=normal,
     taillabel=${dotString(formatCardinality(attr.cardinality))},
-    labeldistance=1.5,
+    labeldistance=0.75,
     labelangle=0`
       : "";
 
@@ -114,8 +114,8 @@ function renderComposite(attr: GraphAttribute): string {
   parts.push(renderNode(finalId, finalName, style.node));
   parts.push(renderEdge(attr.entityId, finalId, style.edge, 1.0, 3));
 
-  subNames.forEach((name, i) => {
-    const id = `${attr.id}_sub_${i}`;
+  subNames.forEach(name => {
+    const id = `${attr.id}_sub_${name}`;
     parts.push(renderNode(id, name, style.node));
     parts.push(renderEdge(finalId, id, style.edge, 0.6, 2));
   });

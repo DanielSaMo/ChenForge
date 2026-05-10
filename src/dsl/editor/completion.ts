@@ -41,10 +41,10 @@ export function autocompleteFromSchema(
     return keywordFallback(from);
   }
 
-  const { spec, ref, missingChild } = specInfo;
+  const { spec, ref, activeChild } = specInfo;
 
-  if (missingChild) {
-    const targeted = suggestForMissingChild(spec, ref, missingChild, from, context);
+  if (activeChild) {
+    const targeted = suggestForActiveChild(spec, ref, activeChild, from, context);
     if (targeted) return targeted;
   }
 
@@ -54,25 +54,32 @@ export function autocompleteFromSchema(
   return null;
 }
 
-export function suggestForMissingChild(
+function suggestForActiveChild(
   spec: NodeSpec,
   ref: SyntaxNodeRef,
-  missingChild: string,
+  activeChild: string,
   from: number,
   context: CompletionContext
 ): CompletionResult | null {
-  const field = spec.fields.find(f => f.child === missingChild);
+  const field = spec.fields.find(f => f.child === activeChild);
 
-  if (field && isScopeField(field)) {
-    return suggestScopeField(spec, ref, from, context);
+  if (field) {
+    if (isScopeField(field)) {
+      return suggestScopeField(spec, ref, from, context);
+    }
+    if (isIdField(field)) {
+      return suggestIdField(spec, ref, from);
+    }
+    if (isEnumField(field)) {
+      return suggestEnumField(spec, ref, from);
+    }
   }
 
-  if (field && isIdField(field)) {
-    return suggestIdField(spec, ref, from);
-  }
-
-  if (field && isEnumField(field)) {
-    return suggestEnumField(spec, ref, from);
+  const arg = (spec.arguments ?? []).find(a => a.child === activeChild);
+  if (arg) {
+    return isCardinalityArgument(arg)
+      ? suggestCardinalityArgument(from, arg)
+      : suggestNamedArgument(from, arg);
   }
 
   return null;
@@ -91,6 +98,10 @@ function suggestArgumentFromEnum(
   if (!enumNode) return null;
 
   const enumValue = context.state.sliceDoc(enumNode.from, enumNode.to);
+
+  if (context.pos < enumNode.to) {
+    return null;
+  }
 
   const arg = (spec.arguments ?? []).find(a => a.when.value === enumValue);
   if (!arg) return null;

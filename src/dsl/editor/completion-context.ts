@@ -10,7 +10,7 @@ import { specByLezerNode } from "../schema/utils";
 type SpecAtPosition = {
   spec: NodeSpec;
   ref: SyntaxNodeRef;
-  missingChild: string | null;
+  activeChild: string | null;
 };
 
 let lastDocText: string | null = null;
@@ -60,8 +60,8 @@ export function getSpecAtPosition(
 
   if (!spec) return null;
 
-  const missingChild = detectMissingChild(node, spec, pos);
-  return { spec, ref: toRef(node), missingChild };
+  const activeChild = detectActiveChild(node, spec, pos);
+  return { spec, ref: toRef(node), activeChild };
 }
 
 function findSpecNodeDeep(node: SyntaxNode): SyntaxNode | null {
@@ -76,6 +76,49 @@ function findSpecNodeDeep(node: SyntaxNode): SyntaxNode | null {
     for (let child = current.firstChild; child; child = child.nextSibling) {
       stack.push(child);
     }
+  }
+
+  return null;
+}
+
+function detectActiveChild(
+  node: SyntaxNode,
+  spec: NodeSpec,
+  pos: number
+): string | null {
+  const children: { name: string; from: number; to: number }[] = [];
+
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    children.push({
+      name: child.type.name,
+      from: child.from,
+      to: child.to
+    });
+  }
+
+  for (const field of spec.fields) {
+    const childNode = node.getChild(field.child);
+
+    if (childNode) {
+      if (pos >= childNode.from && pos <= childNode.to) {
+        return field.child;
+      }
+    } else {
+      for (let i = 0; i < children.length - 1; i++) {
+        const left = children[i];
+        const right = children[i + 1];
+
+        if (pos >= left.to && pos <= right.from) {
+          return field.child;
+        }
+      }
+    }
+  }
+
+  const last = children[children.length - 1];
+  if (last && pos > last.to) {
+    const nextField = spec.fields.find(f => !node.getChild(f.child));
+    return nextField ? nextField.child : null;
   }
 
   return null;
@@ -99,32 +142,6 @@ export function isCommentLine(state: EditorState, pos: number): boolean {
   });
 
   return commentFrom !== -1 && pos >= commentFrom;
-}
-
-function detectMissingChild(
-  node: SyntaxNode,
-  spec: NodeSpec,
-  pos: number
-): string | null {
-  for (const field of spec.fields) {
-    const child = node.getChild(field.child);
-
-    if (!child) return field.child;
-    if (child.type.isError) return field.child;
-
-    if (pos >= child.from && pos <= child.to) return field.child;
-  }
-
-  const last = node.lastChild;
-  if (last && pos > last.to) {
-    const nextField = spec.fields.find(f => {
-      const child = node.getChild(f.child);
-      return !child || child.type.isError;
-    });
-    return nextField ? nextField.child : null;
-  }
-
-  return null;
 }
 
 function toRef(node: SyntaxNode): SyntaxNodeRef {
