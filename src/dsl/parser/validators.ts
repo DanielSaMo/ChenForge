@@ -2,6 +2,7 @@ import type { AST, ParseError } from "../model";
 import {
   DSL_SCHEMA,
   type NodeSpec,
+  isEnumField,
   isIdField,
   isScopeField
 } from "../schema";
@@ -25,6 +26,37 @@ export function validateUniqueness(
 
   for (const extractedNode of extracted) {
     validateNodeUniqueness(extractedNode, maps, errors);
+  }
+}
+
+export function validateEnumTypes(
+  extracted: ExtractedNode[],
+  errors: ParseError[]
+) {
+  for (const extractedNode of extracted) {
+    const { spec, record, fieldPositions, node } = extractedNode;
+
+    for (const field of spec.fields) {
+      if (!isEnumField(field)) continue;
+
+      const astField = field.astField;
+      if (!astField) continue;
+
+      const value = record[astField];
+      if (typeof value !== "string") continue;
+
+      const validValues = field.enumOptions?.map(o => o.value) ?? [];
+
+      if (!validValues.includes(value)) {
+        const pos = fieldPositions[astField]?.[0];
+
+        errors.push({
+          message: `Invalid type '${value}'. Expected: ${validValues.join(", ")}`,
+          from: pos?.from ?? node.from,
+          to: pos?.to ?? node.to
+        });
+      }
+    }
   }
 }
 

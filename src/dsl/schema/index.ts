@@ -33,10 +33,20 @@ export const DSL_SCHEMA: DSLSchema = {
           kind: "id",
           child: "Identifier",
           astField: "name"
+        },
+        {
+          kind: "enum",
+          child: "Type",
+          astField: "kind",
+          enumOptions: [
+            { value: "ST", label: "Strong entity" },
+            { value: "WK", label: "Weak entity" }
+          ]
         }
       ],
 
-      missingIdMessage: "Invalid entity declaration. Expected: entity name",
+      missingIdMessage:
+        "Invalid entity declaration. Expected: entity name TYPE",
       duplicateIdMessage: name => `Duplicate entity name '${name}'`,
 
       autocompleteName: {
@@ -46,6 +56,7 @@ export const DSL_SCHEMA: DSLSchema = {
 
       uniqueKeyFields: ["name"]
     },
+
     {
       lezerNode: "attributeDecl",
       astCollection: "attributes",
@@ -70,7 +81,7 @@ export const DSL_SCHEMA: DSLSchema = {
         },
         {
           kind: "enum",
-          child: "AttributeType",
+          child: "Type",
           astField: "kind",
           enumOptions: [
             { value: "PK", label: "Primary key" },

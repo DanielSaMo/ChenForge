@@ -12,8 +12,7 @@ const dslLanguage = LRLanguage.define({
         Attribute: t.keyword,
         Identifier: t.variableName,
         Number: t.number,
-        "CardinalityArg/Identifier": t.atom,
-        AttributeType: t.typeName,
+        Type: t.typeName,
         LineComment: t.lineComment
       })
     ]

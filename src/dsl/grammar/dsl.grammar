@@ -9,11 +9,11 @@ Declaration {
 }
 
 entityDecl[@name=entityDecl] {
-  Entity Identifier
+  Entity Identifier Type
 }
 
 attributeDecl[@name=attributeDecl] {
-  Attribute EntityRef AttributeName ("," AttributeName)* AttributeType (CompositionArg | CardinalityArg)?
+  Attribute EntityRef AttributeName ("," AttributeName)* Type (CompositionArg | CardinalityArg)?
 }
 
 EntityRef { Identifier }
@@ -34,12 +34,13 @@ CardinalityValue {
   Entity { "entity" }
   Attribute { "attribute" }
 
-  AttributeType {
-    "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV"
+  Type {
+    "ST" | "WK" | "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV"
   }
 
   Number {
-    "-"? $[0-9]+ | "n"
+    "-"? $[0-9]+
+  | $[^A-Za-z_\u{00C0}-\u{10FFFF}]? "n" $[^A-Za-z_\u{00C0}-\u{10FFFF}]?
   }
 
   Identifier {

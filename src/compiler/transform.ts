@@ -66,7 +66,8 @@ function dedupeAttributes(attributes: AST["attributes"]): AST["attributes"] {
 function toGraphEntity(ent: AST["entities"][number]): GraphEntity {
   return {
     id: `ent_${ent.name}`,
-    name: ent.name
+    name: ent.name,
+    kind: ent.kind
   };
 }
 

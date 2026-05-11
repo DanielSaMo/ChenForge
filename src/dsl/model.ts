@@ -1,5 +1,8 @@
+export type EntityKind = "ST" | "WK";
+
 interface EntityNode {
   name: string;
+  kind: EntityKind;
 }
 
 export type AttributeKind = "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV";
@@ -39,5 +42,6 @@ export const DSL = {
       label: "attribute",
       info: "Declares one or more attributes for an existing entity"
     }
-  }
+  },
+  invalidDeclarationMessage: "Invalid declaration. Expected: entity or attribute"
 } as const;

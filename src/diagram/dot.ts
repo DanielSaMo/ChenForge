@@ -14,7 +14,15 @@ export function graphToDOT(model: GraphModel): string {
 
 function renderEntities(model: GraphModel): string {
   return model.entities
-    .map(ent => `${dotId(ent.id)} [shape=box, ${dotLabel(ent.name)}];\n`)
+    .map(ent => {
+      const isWeak = ent.kind === "WK";
+
+      const shape = isWeak
+        ? `shape=box, peripheries=2`
+        : `shape=box`;
+
+      return `${dotId(ent.id)} [${shape}, ${dotLabel(ent.name)}];\n`;
+    })
     .join("");
 }
 

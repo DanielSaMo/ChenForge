@@ -33,9 +33,7 @@ function attributeStyle(kind: AttributeKind): AttributeStyle {
         edge: `style=solid`
       };
 
-    case "SP":
-    case "CP":
-    case "MV":
+    default:
       return {
         node: `style=solid`,
         edge: `style=solid`

@@ -1,5 +1,5 @@
 import type { SyntaxNode } from "@lezer/common";
-import type { ParseError } from "../model";
+import { DSL, type ParseError } from "../model";
 import {
   type AnyArgument,
   type AnyField,
@@ -25,6 +25,38 @@ export function extractNodes(
 ): ExtractionResult {
   const extracted: ExtractionResult["extracted"] = [];
   const pendingScopeRefs: PendingScopeRef[] = [];
+
+  const validKeywords = Object.keys(DSL.keywords);
+  const lines = input.split(/\r?\n/);
+  let offset = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      offset += line.length + 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("//")) {
+      offset += line.length + 1;
+      continue;
+    }
+
+    const code = trimmed.split("//")[0].trim();
+
+    const isValidStart = validKeywords.some(k => code.startsWith(k));
+
+    if (!isValidStart) {
+      errors.push({
+        message: DSL.invalidDeclarationMessage,
+        from: offset,
+        to: offset + code.length
+      });
+    }
+
+    offset += line.length + 1;
+  }
 
   root.cursor().iterate(node => {
     const spec = specByLezerNode(node.type.name);

@@ -1,8 +1,13 @@
-import type { AttributeCardinality, AttributeKind } from "../dsl/model";
+import type {
+  EntityKind,
+  AttributeKind,
+  AttributeCardinality
+} from "../dsl/model";
 
 export interface GraphEntity {
   id: string;
   name: string;
+  kind: EntityKind;
 }
 
 export interface GraphAttribute {
