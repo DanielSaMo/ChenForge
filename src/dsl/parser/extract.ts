@@ -145,35 +145,38 @@ function extractArguments(
   errors: ParseError[]
 ) {
   for (const arg of spec.arguments ?? []) {
-    const argNode = node.getChild(arg.child);
     const applies = argumentApplies(arg, record);
 
-    if (!argNode) {
+    const argNodes = node.getChildren(arg.child);
+
+    if (argNodes.length === 0) {
       if (applies) {
         const enumField = spec.fields.find(isEnumField);
         const enumNode = enumField ? node.getChild(enumField.child) : null;
 
-        if (enumNode) {
-          errors.push({
-            message: arg.requiredMessage,
-            from: enumNode.from,
-            to: enumNode.to
-          });
-        }
+        errors.push({
+          message: arg.requiredMessage,
+          from: enumNode?.from ?? node.from,
+          to: enumNode?.to ?? node.to
+        });
       }
       continue;
     }
 
     if (!applies) {
+      const enumValue = arg.when
+        ? String(record[arg.when.enumField] ?? "?")
+        : "?";
       errors.push({
-        message: arg.unexpectedMessage(String(record[arg.when.enumField] ?? "?")),
-        from: argNode.from,
-        to: argNode.to
+        message: arg.unexpectedMessage(enumValue),
+        from: argNodes[0].from,
+        to: argNodes[0].to
       });
       continue;
     }
 
     if (isIdArgument(arg)) {
+      const argNode = argNodes[0];
       const value = getNodeValue(input, argNode);
       record[arg.astField] = value.value;
       fieldPositions[arg.astField] = [value];
@@ -181,15 +184,36 @@ function extractArguments(
     }
 
     if (isCardinalityArgument(arg)) {
-      const cardinality = parseCardinalityArg(input, argNode, errors);
-      if (cardinality) {
-        record[arg.astField] = cardinality;
-        fieldPositions[arg.astField] = [getNodeValue(input, argNode)];
+      const cardinalities = argNodes
+        .map(argNode => ({
+          value: parseCardinalityArg(input, argNode, errors, {
+            allowManyMin: arg.allowManyMin
+          }),
+          position: getNodeValue(input, argNode)
+        }))
+        .filter(item => Boolean(item.value));
+
+      if (cardinalities.length) {
+        record[arg.astField] = arg.multiple
+          ? cardinalities.map(item => item.value)
+          : cardinalities[0].value;
+        fieldPositions[arg.astField] = arg.multiple
+          ? cardinalities.map(item => item.position)
+          : [cardinalities[0].position];
+      }
+
+      if (arg.expectedCount && argNodes.length !== arg.expectedCount) {
+        errors.push({
+          message: arg.requiredMessage,
+          from: node.from,
+          to: node.to
+        });
       }
     }
   }
 }
 
 function argumentApplies(arg: AnyArgument, record: Record<string, any>): boolean {
+  if (!arg.when) return true;
   return record[arg.when.enumField] === arg.when.value;
 }

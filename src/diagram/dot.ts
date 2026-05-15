@@ -1,11 +1,13 @@
 import type { GraphModel } from "../compiler/graph";
 import { renderAttributes } from "./attributes";
+import { renderRelationships } from "./relationships";
 import { dotId, dotLabel } from "./dot-utils";
 
 export function graphToDOT(model: GraphModel): string {
   let dot = openGraph();
 
   dot += renderEntities(model);
+  dot += renderRelationships(model);
   dot += renderAttributes(model);
 
   dot += closeGraph();

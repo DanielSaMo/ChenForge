@@ -7,11 +7,14 @@ import type { SyntaxNodeRef } from "@lezer/common";
 import { DSL } from "../model";
 import {
   type AnyArgument,
+  type CardinalityArgument,
   type NodeSpec,
+  type ScopeField,
   isEnumField,
   isIdField,
   isScopeField
 } from "../schema";
+import { getScopeReferences } from "../schema/utils";
 import { getParsedAST } from "./completion-context";
 
 export function keywordFallback(from: number): CompletionResult {
@@ -35,27 +38,33 @@ export function suggestScopeField(
   if (!scopeField) return null;
 
   const ast = getParsedAST(context.state) as any;
-  const collection = ast[scopeField.refCollection] as any[] | undefined;
   const existing = ref.node.getChildren(scopeField.child);
   let typed = "";
 
   if (existing.length > 0) {
-    const child = existing[0].node;
-    if (!(context.pos >= child.from && context.pos <= child.to)) return null;
-    typed = context.state.sliceDoc(child.from, child.to);
+    const child = existing
+      .map(item => item.node)
+      .find(item => context.pos >= item.from && context.pos <= item.to);
+
+    if (!child && (!scopeField.multiple || context.pos !== from)) return null;
+    if (child) {
+      typed = context.state.sliceDoc(child.from, child.to);
+    }
   } else if (context.pos !== from) {
     return null;
   }
 
-  if (collection && collection.length > 0) {
+  const scopeOptions = getScopeOptions(ast, scopeField);
+
+  if (scopeOptions.length > 0) {
     return completionResult(
       from,
-      collection
-        .filter(item => String(item[scopeField.refField]).startsWith(typed))
+      scopeOptions
+        .filter(item => item.label.startsWith(typed))
         .map(item => ({
-          label: String(item[scopeField.refField]),
+          label: item.label,
           type: "variable",
-          info: `Existing ${String(scopeField.refCollection).slice(0, -1)}`
+          info: item.info
         }))
     );
   }
@@ -71,17 +80,38 @@ export function suggestScopeField(
   ]);
 }
 
+function getScopeOptions(
+  ast: any,
+  scopeField: ScopeField
+): { label: string; info: string }[] {
+  return getScopeReferences(scopeField).flatMap(scopeRef => {
+    const collection = ast[scopeRef.refCollection] as any[] | undefined;
+    if (!collection) return [];
+
+    return collection.map(item => ({
+      label: String(item[scopeRef.refField]),
+      info:
+        scopeRef.info ??
+        `Existing ${String(scopeRef.refCollection).slice(0, -1)}`
+    }));
+  });
+}
+
 export function suggestIdField(
   spec: NodeSpec,
   ref: SyntaxNodeRef,
-  from: number
+  from: number,
+  context: CompletionContext
 ): CompletionResult | null {
   const idField = spec.fields.find(isIdField);
   if (!idField || !spec.autocompleteName) return null;
 
   const all = ref.node.getChildren(idField.child);
   const effective = idField.skipFirst ? all.slice(1) : all;
-  if (effective.length > 0) return null;
+  if (effective.length > 0 && !idField.multiple) return null;
+  if (effective.length > 0 && idField.multiple && from !== context.pos) {
+    return null;
+  }
 
   const base = spec.autocompleteName.label;
   const options: Completion[] = [
@@ -124,25 +154,16 @@ export function suggestEnumField(
 
 export function suggestCardinalityArgument(
   from: number,
-  arg: AnyArgument
+  arg: CardinalityArgument
 ): CompletionResult {
-  return completionResult(from, [
-    {
-      label: arg.autocompleteName?.label ?? "(0,n)",
+  return completionResult(
+    from,
+    arg.autocompleteOptions.map(option => ({
+      label: option.value,
       type: "constant",
-      info: arg.autocompleteName?.info
-    },
-    {
-      label: "(1,n)",
-      type: "constant",
-      info: "At least one value, with no fixed upper limit"
-    },
-    {
-      label: "(0,1)",
-      type: "constant",
-      info: "Zero or one value"
-    }
-  ]);
+      info: option.info ?? option.label
+    }))
+  );
 }
 
 export function suggestNamedArgument(

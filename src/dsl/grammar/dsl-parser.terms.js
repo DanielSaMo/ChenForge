@@ -17,4 +17,7 @@ export const
   CardinalityArg = 15,
   CardinalityValue = 16,
   Number = 17,
-  LineComment = 18
+  relationshipDecl = 18,
+  Relationship = 19,
+  RelationshipName = 20,
+  LineComment = 21

@@ -20,13 +20,15 @@ export interface BaseField {
 export interface IdField extends BaseField {
   kind: "id";
   astField: string;
+  repeatSeparator?: string;
 }
 
 export interface ScopeField extends BaseField {
   kind: "scope";
   astField: string;
-  refCollection: keyof AST;
-  refField: string;
+  refCollection?: keyof AST;
+  refField?: string;
+  refCollections?: ScopeReference[];
 }
 
 export interface EnumField extends BaseField {
@@ -51,7 +53,7 @@ export interface BaseArgument {
   kind: ArgumentKind;
   child: string;
   astField: string;
-  when: ArgumentWhen;
+  when?: ArgumentWhen;
   requiredMessage: string;
   unexpectedMessage: (kind: string) => string;
   autocompleteName?: {
@@ -67,6 +69,10 @@ export interface IdArgument extends BaseArgument {
 
 export interface CardinalityArgument extends BaseArgument {
   kind: "cardinality";
+  multiple?: boolean;
+  allowManyMin?: boolean;
+  expectedCount?: number;
+  autocompleteOptions: EnumOption[];
 }
 
 export type AnyArgument = IdArgument | CardinalityArgument;
@@ -83,6 +89,7 @@ export interface NodeSpec {
   invalidScopeMessage?: (name: string) => string;
 
   uniqueKeyFields?: string[];
+  uniqueScope?: string;
 
   autocompleteName?: {
     label: string;
@@ -93,6 +100,14 @@ export interface NodeSpec {
     label: string;
     info: string;
   };
+
+  completionOrder: string[];
+}
+
+export interface ScopeReference {
+  refCollection: keyof AST;
+  refField: string;
+  info?: string;
 }
 
 export interface DSLSchema {

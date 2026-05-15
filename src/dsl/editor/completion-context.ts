@@ -3,7 +3,7 @@ import type { EditorState } from "@codemirror/state";
 import type { CompletionContext } from "@codemirror/autocomplete";
 import type { SyntaxNode, SyntaxNodeRef } from "@lezer/common";
 import type { AST } from "../model";
-import type { NodeSpec } from "../schema";
+import { isIdField, type IdField, type NodeSpec } from "../schema";
 import { parseDSL } from "../parser";
 import { specByLezerNode } from "../schema/utils";
 
@@ -60,7 +60,7 @@ export function getSpecAtPosition(
 
   if (!spec) return null;
 
-  const activeChild = detectActiveChild(node, spec, pos);
+  const activeChild = detectActiveChild(context, node, spec, pos);
   return { spec, ref: toRef(node), activeChild };
 }
 
@@ -82,46 +82,83 @@ function findSpecNodeDeep(node: SyntaxNode): SyntaxNode | null {
 }
 
 function detectActiveChild(
+  context: CompletionContext,
   node: SyntaxNode,
   spec: NodeSpec,
   pos: number
 ): string | null {
-  const children: { name: string; from: number; to: number }[] = [];
+  const order = spec.completionOrder;
+  let orderIndex = 0;
+  let lastMatched: { name: string; to: number } | null = null;
 
   for (let child = node.firstChild; child; child = child.nextSibling) {
-    children.push({
-      name: child.type.name,
-      from: child.from,
-      to: child.to
-    });
-  }
+    const name = child.type.name;
 
-  for (const field of spec.fields) {
-    const childNode = node.getChild(field.child);
+    if (!order.includes(name)) continue;
 
-    if (childNode) {
-      if (pos >= childNode.from && pos <= childNode.to) {
-        return field.child;
-      }
-    } else {
-      for (let i = 0; i < children.length - 1; i++) {
-        const left = children[i];
-        const right = children[i + 1];
+    const repeatedPrevious =
+      orderIndex > 0 &&
+      order[orderIndex - 1] === name &&
+      isRepeatableCompletionChild(spec, name);
 
-        if (pos >= left.to && pos <= right.from) {
-          return field.child;
-        }
-      }
+    while (
+      !repeatedPrevious &&
+      orderIndex < order.length &&
+      order[orderIndex] !== name
+    ) {
+      orderIndex++;
     }
+
+    if (orderIndex >= order.length) return null;
+
+    if (pos >= child.from && pos <= child.to) {
+      return name;
+    }
+
+    if (child.to <= pos) {
+      lastMatched = { name, to: child.to };
+      if (!repeatedPrevious) {
+        orderIndex++;
+      }
+      continue;
+    }
+
+    return order[orderIndex] ?? null;
   }
 
-  const last = children[children.length - 1];
-  if (last && pos > last.to) {
-    const nextField = spec.fields.find(f => !node.getChild(f.child));
-    return nextField ? nextField.child : null;
+  if (
+    lastMatched &&
+    isRepeatableCompletionChild(spec, lastMatched.name) &&
+    shouldContinueRepeatableChild(context, spec, lastMatched)
+  ) {
+    return lastMatched.name;
   }
 
-  return null;
+  return order[orderIndex] ?? null;
+}
+
+function isRepeatableCompletionChild(spec: NodeSpec, childName: string): boolean {
+  const field = spec.fields.find(
+    (current): current is IdField =>
+      current.child === childName && isIdField(current)
+  );
+
+  return Boolean(field?.multiple && field.repeatSeparator);
+}
+
+function shouldContinueRepeatableChild(
+  context: CompletionContext,
+  spec: NodeSpec,
+  lastMatched: { name: string; to: number }
+): boolean {
+  const field = spec.fields.find(
+    (current): current is IdField =>
+      current.child === lastMatched.name && isIdField(current)
+  );
+  if (!field?.repeatSeparator) return false;
+
+  const between = context.state.sliceDoc(lastMatched.to, context.pos);
+  return between.includes(field.repeatSeparator);
 }
 
 export function isCommentLine(state: EditorState, pos: number): boolean {

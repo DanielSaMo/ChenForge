@@ -68,7 +68,7 @@ function suggestForActiveChild(
       return suggestScopeField(spec, ref, from, context);
     }
     if (isIdField(field)) {
-      return suggestIdField(spec, ref, from);
+      return suggestIdField(spec, ref, from, context);
     }
     if (isEnumField(field)) {
       return suggestEnumField(spec, ref, from);
@@ -103,7 +103,7 @@ function suggestArgumentFromEnum(
     return null;
   }
 
-  const arg = (spec.arguments ?? []).find(a => a.when.value === enumValue);
+  const arg = (spec.arguments ?? []).find(a => a.when?.value === enumValue);
   if (!arg) return null;
 
   if (!ref.node.getChild(arg.child)) {

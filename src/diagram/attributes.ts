@@ -1,5 +1,9 @@
 import type { AttributeKind } from "../dsl/model";
 import type { GraphModel, GraphAttribute } from "../compiler/graph";
+import {
+  formatCardinality,
+  shouldUseCardinalityArrow
+} from "../dsl/schema/cardinality";
 import { dotId, dotString, dotXLabel } from "./dot-utils";
 
 interface AttributeStyle {
@@ -89,7 +93,7 @@ function renderSimple(attr: GraphAttribute): string {
   const extra =
     attr.kind === "MV" && attr.cardinality
       ? `dir=forward,
-    arrowhead=normal,
+    arrowhead=${shouldUseCardinalityArrow(attr.cardinality) ? "normal" : "none"},
     taillabel=${dotString(formatCardinality(attr.cardinality))},
     labeldistance=0.75,
     labelangle=0`
@@ -119,10 +123,4 @@ function renderComposite(attr: GraphAttribute): string {
   });
 
   return parts.join("");
-}
-
-function formatCardinality(
-  cardinality: NonNullable<GraphAttribute["cardinality"]>
-): string {
-  return `(${cardinality.min},${cardinality.max})`;
 }

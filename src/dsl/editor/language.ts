@@ -10,6 +10,7 @@ const dslLanguage = LRLanguage.define({
       styleTags({
         Entity: t.keyword,
         Attribute: t.keyword,
+        Relationship: t.keyword,
         Identifier: t.variableName,
         Number: t.number,
         Type: t.typeName,

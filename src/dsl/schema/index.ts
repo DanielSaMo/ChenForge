@@ -5,8 +5,11 @@ export type {
   AnyField,
   CardinalityArgument,
   DSLSchema,
+  IdField,
   IdArgument,
-  NodeSpec
+  NodeSpec,
+  ScopeField,
+  ScopeReference
 } from "./types";
 
 export {
@@ -54,7 +57,104 @@ export const DSL_SCHEMA: DSLSchema = {
         info: "Name of the new entity"
       },
 
-      uniqueKeyFields: ["name"]
+      uniqueKeyFields: ["name"],
+      uniqueScope: "modelNames",
+      completionOrder: ["Entity", "Identifier", "Type"]
+    },
+
+    {
+      lezerNode: "relationshipDecl",
+      astCollection: "relationships",
+
+      fields: [
+        {
+          kind: "prefix",
+          child: "Relationship"
+        },
+        {
+          kind: "scope",
+          child: "EntityRef",
+          astField: "entities",
+          multiple: true,
+          refCollection: "entities",
+          refField: "name"
+        },
+        {
+          kind: "id",
+          child: "RelationshipName",
+          astField: "name"
+        }
+      ],
+
+      arguments: [
+        {
+          kind: "cardinality",
+          child: "CardinalityArg",
+          astField: "cardinalities",
+          multiple: true,
+          allowManyMin: true,
+          expectedCount: 2,
+          requiredMessage:
+            "Relationship requires cardinalities after each entity. Expected: relationship entityNameA (min,max) entityNameB (min,max) relationshipName",
+          unexpectedMessage: () =>
+            "Relationship cardinality must follow an entity reference",
+          autocompleteOptions: [
+            {
+              value: "(1,1)",
+              label: "(1,1)",
+              info: "Exactly one participating entity instance"
+            },
+            {
+              value: "(0,1)",
+              label: "(0,1)",
+              info: "Zero or one participating entity instance"
+            },
+            {
+              value: "(1,n)",
+              label: "(1,n)",
+              info: "One or more participating entity instances"
+            },
+            {
+              value: "(0,n)",
+              label: "(0,n)",
+              info: "Zero or more participating entity instances"
+            },
+            {
+              value: "(n,m)",
+              label: "(n,m)",
+              info: "Many-to-many notation; normalized internally"
+            }
+          ]
+        }
+      ],
+
+      missingIdMessage:
+        "Invalid relationship declaration. Expected: relationship entityNameA (min,max) entityNameB (min,max) relationshipName",
+      duplicateIdMessage: name => `Duplicate relationship name '${name}'`,
+
+      invalidScopeMessage: name =>
+        `Unknown entity '${name}' referenced in relationship declaration`,
+
+      uniqueKeyFields: ["name"],
+      uniqueScope: "modelNames",
+      completionOrder: [
+        "Relationship",
+        "EntityRef",
+        "CardinalityArg",
+        "EntityRef",
+        "CardinalityArg",
+        "RelationshipName"
+      ],
+
+      scopeAutocompleteName: {
+        label: "entityName",
+        info: "Name of the participating entity"
+      },
+
+      autocompleteName: {
+        label: "relationshipName",
+        info: "Name of the new relationship"
+      }
     },
 
     {
@@ -70,14 +170,25 @@ export const DSL_SCHEMA: DSLSchema = {
           kind: "scope",
           child: "EntityRef",
           astField: "entity",
-          refCollection: "entities",
-          refField: "name"
+          refCollections: [
+            {
+              refCollection: "entities",
+              refField: "name",
+              info: "Existing entity"
+            },
+            {
+              refCollection: "relationships",
+              refField: "name",
+              info: "Existing relationship"
+            }
+          ]
         },
         {
           kind: "id",
           child: "AttributeName",
           astField: "names",
-          multiple: true
+          multiple: true,
+          repeatSeparator: ","
         },
         {
           kind: "enum",
@@ -120,10 +231,23 @@ export const DSL_SCHEMA: DSLSchema = {
             "Multivalued attribute requires cardinality after MV. Expected: (min,max)",
           unexpectedMessage: kind =>
             `Attribute type '${kind}' does not accept cardinality arguments`,
-          autocompleteName: {
-            label: "(0,n)",
-            info: "Cardinality for a multivalued attribute"
-          }
+          autocompleteOptions: [
+            {
+              value: "(0,n)",
+              label: "(0,n)",
+              info: "Optional multivalued attribute"
+            },
+            {
+              value: "(1,n)",
+              label: "(1,n)",
+              info: "Required multivalued attribute"
+            },
+            {
+              value: "(0,1)",
+              label: "(0,1)",
+              info: "Optional single value, accepted by the cardinality model"
+            }
+          ]
         }
       ],
 
@@ -133,9 +257,10 @@ export const DSL_SCHEMA: DSLSchema = {
         `Duplicate attribute name '${name}' for entity '${scope ?? "?"}'`,
 
       invalidScopeMessage: name =>
-        `Unknown entity '${name}' referenced in attribute declaration`,
+        `Unknown entity or relationship '${name}' referenced in attribute declaration`,
 
       uniqueKeyFields: ["entity", "names"],
+      completionOrder: ["Attribute", "EntityRef", "AttributeName", "Type"],
 
       scopeAutocompleteName: {
         label: "entityName",

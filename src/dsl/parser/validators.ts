@@ -6,6 +6,7 @@ import {
   isIdField,
   isScopeField
 } from "../schema";
+import { getScopeReferences } from "../schema/utils";
 import type {
   ExtractedNode,
   FieldValueWithPos,
@@ -16,11 +17,11 @@ export function validateUniqueness(
   extracted: ExtractedNode[],
   errors: ParseError[]
 ) {
-  const maps = new Map<NodeSpec, Map<string, { from: number; to: number }>>();
+  const maps = new Map<string, Map<string, { from: number; to: number }>>();
 
   for (const spec of DSL_SCHEMA.nodes) {
     if (spec.uniqueKeyFields?.length) {
-      maps.set(spec, new Map());
+      maps.set(getUniquenessMapKey(spec), new Map());
     }
   }
 
@@ -71,8 +72,14 @@ export function validateScopeReferences(
     const field = ref.field;
     if (!isScopeField(field)) continue;
 
-    const valid = refSets.get(`${field.refCollection}:${field.refField}`);
-    if (!valid || valid.has(ref.value)) continue;
+    const isValid = getScopeReferences(field).some(scopeRef => {
+      const valid = refSets.get(
+        `${scopeRef.refCollection}:${scopeRef.refField}`
+      );
+      return valid?.has(ref.value);
+    });
+
+    if (isValid) continue;
 
     errors.push({
       message: ref.spec.invalidScopeMessage
@@ -86,11 +93,11 @@ export function validateScopeReferences(
 
 function validateNodeUniqueness(
   extractedNode: ExtractedNode,
-  maps: Map<NodeSpec, Map<string, { from: number; to: number }>>,
+  maps: Map<string, Map<string, { from: number; to: number }>>,
   errors: ParseError[]
 ) {
   const { spec, node, record, fieldPositions } = extractedNode;
-  const map = maps.get(spec);
+  const map = maps.get(getUniquenessMapKey(spec));
   if (!map || !spec.uniqueKeyFields) return;
 
   const idField = spec.fields.find(isIdField);
@@ -166,24 +173,30 @@ function createReferenceSets(ast: AST): Map<string, Set<string>> {
 
   for (const spec of DSL_SCHEMA.nodes) {
     for (const field of spec.fields.filter(isScopeField)) {
-      const key = `${field.refCollection}:${field.refField}`;
-      if (refSets.has(key)) continue;
+      for (const scopeRef of getScopeReferences(field)) {
+        const key = `${scopeRef.refCollection}:${scopeRef.refField}`;
+        if (refSets.has(key)) continue;
 
-      const refItems = (ast as any)[field.refCollection] as any[];
-      const set = new Set<string>(
-        refItems
-          .map(item => {
-            const value = item[field.refField];
-            return Array.isArray(value) ? value[0] : value;
-          })
-          .filter((value): value is string => typeof value === "string")
-      );
+        const refItems = (ast as any)[scopeRef.refCollection] as any[];
+        const set = new Set<string>(
+          refItems
+            .map(item => {
+              const value = item[scopeRef.refField];
+              return Array.isArray(value) ? value[0] : value;
+            })
+            .filter((value): value is string => typeof value === "string")
+        );
 
-      refSets.set(key, set);
+        refSets.set(key, set);
+      }
     }
   }
 
   return refSets;
+}
+
+function getUniquenessMapKey(spec: NodeSpec): string {
+  return spec.uniqueScope ?? spec.lezerNode;
 }
 
 function getScopeName(

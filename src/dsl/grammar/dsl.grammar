@@ -5,7 +5,7 @@ Statement {
 }
 
 Declaration {
-  entityDecl | attributeDecl
+  entityDecl | attributeDecl | relationshipDecl
 }
 
 entityDecl[@name=entityDecl] {
@@ -16,9 +16,15 @@ attributeDecl[@name=attributeDecl] {
   Attribute EntityRef AttributeName ("," AttributeName)* Type (CompositionArg | CardinalityArg)?
 }
 
+relationshipDecl[@name=relationshipDecl] {
+  Relationship EntityRef CardinalityArg EntityRef CardinalityArg RelationshipName
+}
+
 EntityRef { Identifier }
 
 AttributeName { Identifier }
+
+RelationshipName { Identifier }
 
 CompositionArg { Identifier }
 
@@ -33,6 +39,7 @@ CardinalityValue {
 @tokens {
   Entity { "entity" }
   Attribute { "attribute" }
+  Relationship { "relationship" }
 
   Type {
     "ST" | "WK" | "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV"
@@ -40,7 +47,7 @@ CardinalityValue {
 
   Number {
     "-"? $[0-9]+
-  | $[^A-Za-z_\u{00C0}-\u{10FFFF}]? "n" $[^A-Za-z_\u{00C0}-\u{10FFFF}]?
+  | $[^A-Za-z_\u{00C0}-\u{10FFFF}]? ("n" | "m") $[^A-Za-z_\u{00C0}-\u{10FFFF}]?
   }
 
   Identifier {

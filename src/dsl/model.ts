@@ -7,9 +7,11 @@ interface EntityNode {
 
 export type AttributeKind = "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV";
 
+export type CardinalityValue = number | "n";
+
 export interface AttributeCardinality {
   min: number;
-  max: number | "n";
+  max: CardinalityValue;
 }
 
 interface AttributeNode {
@@ -20,6 +22,17 @@ interface AttributeNode {
   cardinality?: AttributeCardinality;
 }
 
+export interface RelationshipCardinality {
+  min: CardinalityValue;
+  max: CardinalityValue;
+}
+
+interface RelationshipNode {
+  entities: string[];
+  cardinalities: RelationshipCardinality[];
+  name: string;
+}
+
 export interface ParseError {
   message: string;
   from: number;
@@ -28,6 +41,7 @@ export interface ParseError {
 
 export interface AST {
   entities: EntityNode[];
+  relationships: RelationshipNode[];
   attributes: AttributeNode[];
   errors: ParseError[];
 }
@@ -41,7 +55,12 @@ export const DSL = {
     attribute: {
       label: "attribute",
       info: "Declares one or more attributes for an existing entity"
+    },
+    relationship: {
+      label: "relationship",
+      info: "Declares a relationship between two existing entities"
     }
   },
-  invalidDeclarationMessage: "Invalid declaration. Expected: entity or attribute"
+  invalidDeclarationMessage:
+    "Invalid declaration. Expected: entity, attribute or relationship"
 } as const;

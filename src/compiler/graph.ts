@@ -1,7 +1,8 @@
 import type {
   EntityKind,
   AttributeKind,
-  AttributeCardinality
+  AttributeCardinality,
+  RelationshipCardinality
 } from "../dsl/model";
 
 export interface GraphEntity {
@@ -19,7 +20,15 @@ export interface GraphAttribute {
   cardinality?: AttributeCardinality;
 }
 
+export interface GraphRelationship {
+  id: string;
+  name: string;
+  entityIds: [string, string];
+  cardinalities: [RelationshipCardinality, RelationshipCardinality];
+}
+
 export interface GraphModel {
   entities: GraphEntity[];
+  relationships: GraphRelationship[];
   attributes: GraphAttribute[];
 }

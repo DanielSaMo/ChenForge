@@ -1,6 +1,16 @@
 import type { SyntaxNode } from "@lezer/common";
-import type { AttributeCardinality, ParseError } from "../model";
+import { normalizeManyCardinality } from "../schema/cardinality";
+import type {
+  AttributeCardinality,
+  CardinalityValue,
+  ParseError,
+  RelationshipCardinality
+} from "../model";
 import type { FieldValueWithPos } from "./types";
+
+export interface CardinalityParseOptions {
+  allowManyMin?: boolean;
+}
 
 export function getNodeValue(
   input: string,
@@ -16,8 +26,9 @@ export function getNodeValue(
 export function parseCardinalityArg(
   input: string,
   node: SyntaxNode,
-  errors: ParseError[]
-): AttributeCardinality | undefined {
+  errors: ParseError[],
+  options: CardinalityParseOptions = {}
+): AttributeCardinality | RelationshipCardinality | undefined {
   const before = errors.length;
   const values = node
     .getChildren("CardinalityValue")
@@ -33,11 +44,11 @@ export function parseCardinalityArg(
   }
 
   const [minPos, maxPos] = values;
-  const min = parseMin(minPos, errors);
+  const min = parseMin(minPos, errors, options);
   const max = parseMax(maxPos, errors);
 
   if (
-    min !== undefined &&
+    typeof min === "number" &&
     typeof max === "number" &&
     min >= 0 &&
     max > 0 &&
@@ -57,11 +68,18 @@ export function parseCardinalityArg(
 
 function parseMin(
   pos: FieldValueWithPos,
-  errors: ParseError[]
-): number | undefined {
-  if (pos.value === "n") {
+  errors: ParseError[],
+  options: CardinalityParseOptions
+): CardinalityValue | undefined {
+  const many = normalizeManyCardinality(pos.value);
+
+  if (many && options.allowManyMin) {
+    return many;
+  }
+
+  if (many) {
     errors.push({
-      message: "'n' is only allowed as max cardinality",
+      message: "'n' or 'm' is only allowed as max cardinality",
       from: pos.from,
       to: pos.to
     });
@@ -93,13 +111,14 @@ function parseMin(
 function parseMax(
   pos: FieldValueWithPos,
   errors: ParseError[]
-): number | "n" | undefined {
-  if (pos.value === "n") return "n";
+): CardinalityValue | undefined {
+  const many = normalizeManyCardinality(pos.value);
+  if (many) return many;
 
   const max = parseInteger(pos.value);
   if (max === undefined) {
     errors.push({
-      message: "Cardinality max must be a number greater than 0 or 'n'",
+      message: "Cardinality max must be a number greater than 0, 'n' or 'm'",
       from: pos.from,
       to: pos.to
     });
@@ -108,7 +127,7 @@ function parseMax(
 
   if (max <= 0) {
     errors.push({
-      message: "Cardinality max must be greater than 0 or 'n'",
+      message: "Cardinality max must be greater than 0, 'n' or 'm'",
       from: pos.from,
       to: pos.to
     });
