@@ -1,8 +1,7 @@
 import type { AttributeKind } from "../dsl/model";
 import type { GraphModel, GraphAttribute } from "../compiler/graph";
 import {
-  formatCardinality,
-  shouldUseCardinalityArrow
+  formatAttributeOrEntityCardinality
 } from "../dsl/schema/cardinality";
 import { dotId, dotString, dotXLabel } from "./dot-utils";
 
@@ -49,8 +48,8 @@ function renderNode(id: string, label: string, style: string): string {
   return `
   ${dotId(id)} [
     shape=circle,
-    width=0.3,
-    height=0.3,
+    width=0.275,
+    height=0.275,
     fixedsize=true,
     label="",
     ${dotXLabel(label)},
@@ -62,14 +61,13 @@ function renderEdge(
   from: string,
   to: string,
   style: string,
-  len = 1.0,
-  weight = 3,
   extra = ""
 ): string {
   return `
   ${dotId(from)} -- ${dotId(to)} [
-    len=${len},
-    weight=${weight},
+    len=1,
+    weight=1,
+    constraint=false,
     ${style}
     ${extra}
   ];`;
@@ -90,18 +88,19 @@ function renderSimple(attr: GraphAttribute): string {
 
   const id = attr.id;
   const label = attr.names[0];
+
   const extra =
     attr.kind === "MV" && attr.cardinality
       ? `dir=forward,
-    arrowhead=${shouldUseCardinalityArrow(attr.cardinality) ? "normal" : "none"},
-    taillabel=${dotString(formatCardinality(attr.cardinality))},
+    arrowhead=normal,
+    taillabel=${dotString(formatAttributeOrEntityCardinality(attr.cardinality))},
     labeldistance=0.75,
     labelangle=0`
       : "";
 
   return [
     renderNode(id, label, node),
-    renderEdge(attr.entityId, id, edge, 1.0, 3, extra)
+    renderEdge(attr.entityId, id, edge, extra)
   ].join("");
 }
 
@@ -114,12 +113,12 @@ function renderComposite(attr: GraphAttribute): string {
 
   const finalId = `${attr.id}_final`;
   parts.push(renderNode(finalId, finalName, style.node));
-  parts.push(renderEdge(attr.entityId, finalId, style.edge, 1.0, 3));
+  parts.push(renderEdge(attr.entityId, finalId, style.edge));
 
   subNames.forEach(name => {
     const id = `${attr.id}_sub_${name}`;
     parts.push(renderNode(id, name, style.node));
-    parts.push(renderEdge(finalId, id, style.edge, 0.6, 2));
+    parts.push(renderEdge(finalId, id, style.edge));
   });
 
   return parts.join("");

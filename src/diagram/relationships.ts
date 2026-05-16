@@ -1,7 +1,7 @@
 import type { GraphModel, GraphRelationship } from "../compiler/graph";
 import {
-  formatCardinality,
-  formatRelationshipRatio,
+  formatAttributeOrEntityCardinality,
+  formatRelationshipRatioDisplay,
   shouldUseCardinalityArrow
 } from "../dsl/schema/cardinality";
 import { dotId, dotLabel, dotString } from "./dot-utils";
@@ -19,7 +19,7 @@ function renderRelationship(rel: GraphRelationship): string {
 }
 
 function renderRelationshipNode(rel: GraphRelationship): string {
-  const ratio = formatRelationshipRatio(
+  const ratio = formatRelationshipRatioDisplay(
     rel.cardinalities[0].max,
     rel.cardinalities[1].max
   );
@@ -27,9 +27,6 @@ function renderRelationshipNode(rel: GraphRelationship): string {
   return `
   ${dotId(rel.id)} [
     shape=diamond,
-    width=1.8,
-    height=1.0,
-    margin=0.08,
     ${dotLabel(`${ratio}\n${rel.name}`)}
   ];`;
 }
@@ -39,17 +36,19 @@ function renderRelationshipEdge(
   index: 0 | 1
 ): string {
   const cardinality = rel.cardinalities[index];
-  const arrowhead = shouldUseCardinalityArrow(cardinality) ? "normal" : "none";
+  const hasArrow = shouldUseCardinalityArrow(cardinality);
 
   return `
   ${dotId(rel.id)} -- ${dotId(rel.entityIds[index])} [
-    len=2.2,
-    weight=4,
+    len=3,
+    weight=3,
+
     style=solid,
     dir=forward,
-    arrowhead=${arrowhead},
-    headlabel=${dotString(formatCardinality(cardinality))},
-    labeldistance=1.25,
+    arrowhead=${hasArrow ? "normal" : "none"},
+
+    headlabel=${dotString(formatAttributeOrEntityCardinality(cardinality))},
+    labeldistance=${hasArrow ? 2.75 : 1.5},
     labelangle=0
   ];`;
 }

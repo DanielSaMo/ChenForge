@@ -1,21 +1,25 @@
-import type {
-  AttributeCardinality,
-  CardinalityValue,
-  RelationshipCardinality
+import {
+  CardinalityConfig,
+  type AttributeCardinality,
+  type CardinalityValue,
+  type ManyCardinalityId,
+  type RelationshipCardinality
 } from "../model";
 
 export type AnyCardinality = AttributeCardinality | RelationshipCardinality;
 
 export function normalizeManyCardinality(
   value: string
-): Extract<CardinalityValue, "n"> | undefined {
-  return value === "n" || value === "m" ? "n" : undefined;
+): ManyCardinalityId | undefined {
+  return CardinalityConfig.dslSymbols.includes(value)
+    ? CardinalityConfig.manyId
+    : undefined;
 }
 
 export function isManyCardinalityValue(
   value: CardinalityValue
-): value is Extract<CardinalityValue, "n"> {
-  return value === "n";
+): value is ManyCardinalityId {
+  return value === CardinalityConfig.manyId;
 }
 
 export function shouldUseCardinalityArrow(
@@ -24,31 +28,48 @@ export function shouldUseCardinalityArrow(
   return isManyCardinalityValue(cardinality.max);
 }
 
-export function formatCardinality(cardinality: AnyCardinality): string {
-  const bothMany =
-    isManyCardinalityValue(cardinality.min) &&
-    isManyCardinalityValue(cardinality.max);
-
-  return `(${formatCardinalityValue(
+export function formatAttributeOrEntityCardinality(
+  cardinality: AttributeCardinality | RelationshipCardinality
+): string {
+  return formatCardinalityPair(
     cardinality.min,
-    "min"
-  )},${formatCardinalityValue(cardinality.max, bothMany ? "max" : "min")})`;
+    cardinality.max,
+    CardinalityConfig.display.node
+  );
 }
 
-export function formatRelationshipRatio(
+export function formatRelationshipRatioDisplay(
   left: CardinalityValue,
   right: CardinalityValue
 ): string {
-  return `${formatCardinalityValue(left, "min")}:${formatCardinalityValue(
+  const pair = formatCardinalityPair(
+    left,
     right,
-    "max"
-  )}`;
+    CardinalityConfig.display.relationship
+  );
+
+  return pair.slice(1, -1).replace(",", ":");
 }
 
-function formatCardinalityValue(
-  value: CardinalityValue,
-  position: "min" | "max"
+function formatCardinalityPair(
+  min: CardinalityValue,
+  max: CardinalityValue,
+  display: { single: string; first: string; second: string }
 ): string {
-  if (!isManyCardinalityValue(value)) return String(value);
-  return position === "max" ? "m" : "n";
+  const minMany = isManyCardinalityValue(min);
+  const maxMany = isManyCardinalityValue(max);
+
+  if (!minMany && !maxMany) {
+    return `(${min},${max})`;
+  }
+
+  if (minMany && maxMany) {
+    return `(${display.first},${display.second})`;
+  }
+
+  if (minMany) {
+    return `(${display.single},${max})`;
+  }
+
+  return `(${min},${display.single})`;
 }

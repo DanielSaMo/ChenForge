@@ -1,10 +1,14 @@
 import type { SyntaxNode } from "@lezer/common";
-import { normalizeManyCardinality } from "../schema/cardinality";
-import type {
-  AttributeCardinality,
-  CardinalityValue,
-  ParseError,
-  RelationshipCardinality
+import {
+  normalizeManyCardinality,
+  isManyCardinalityValue
+} from "../schema/cardinality";
+import {
+  CardinalityConfig,
+  type AttributeCardinality,
+  type CardinalityValue,
+  type ParseError,
+  type RelationshipCardinality
 } from "../model";
 import type { FieldValueWithPos } from "./types";
 
@@ -30,11 +34,16 @@ export function parseCardinalityArg(
   options: CardinalityParseOptions = {}
 ): AttributeCardinality | RelationshipCardinality | undefined {
   const before = errors.length;
+
   const values = node
     .getChildren("CardinalityValue")
     .map(child => getNodeValue(input, child));
 
-  if (values.length !== 2) {
+  if (
+    values.length !== 2 ||
+    values[0].value.trim() === "" ||
+    values[1].value.trim() === ""
+  ) {
     errors.push({
       message: "Invalid cardinality. Expected: (min,max)",
       from: node.from,
@@ -50,12 +59,24 @@ export function parseCardinalityArg(
   if (
     typeof min === "number" &&
     typeof max === "number" &&
-    min >= 0 &&
-    max > 0 &&
     min > max
   ) {
     errors.push({
       message: "Cardinality min cannot be greater than max",
+      from: node.from,
+      to: node.to
+    });
+  }
+
+  if (
+    min !== undefined &&
+    max !== undefined &&
+    isManyCardinalityValue(min) &&
+    !isManyCardinalityValue(max)
+  ) {
+    errors.push({
+      message:
+        "If cardinality min is a many value, max must also be a many value",
       from: node.from,
       to: node.to
     });
@@ -73,35 +94,35 @@ function parseMin(
 ): CardinalityValue | undefined {
   const many = normalizeManyCardinality(pos.value);
 
-  if (many && options.allowManyMin) {
-    return many;
-  }
-
   if (many) {
+    if (options.allowManyMin) {
+      return many;
+    }
+
     errors.push({
-      message: "'n' or 'm' is only allowed as max cardinality",
+      message: `${manySymbolsText()} are not allowed as min cardinality`,
       from: pos.from,
       to: pos.to
     });
     return undefined;
   }
 
-  const min = parseInteger(pos.value);
-  if (min === undefined) {
-    errors.push({
-      message: "Cardinality min must be a number",
-      from: pos.from,
-      to: pos.to
-    });
-    return undefined;
-  }
+  const min = Number(pos.value);
 
   if (min < 0) {
-    errors.push({
-      message: "Cardinality min must be greater than or equal to 0",
-      from: pos.from,
-      to: pos.to
-    });
+    if (options.allowManyMin) {
+      errors.push({
+        message: `Cardinality min must be greater than or equal to 0 or one of ${manySymbolsText()}`,
+        from: pos.from,
+        to: pos.to
+      });
+    } else {
+      errors.push({
+        message: "Cardinality min must be greater than or equal to 0",
+        from: pos.from,
+        to: pos.to
+      });
+    }
     return undefined;
   }
 
@@ -115,19 +136,11 @@ function parseMax(
   const many = normalizeManyCardinality(pos.value);
   if (many) return many;
 
-  const max = parseInteger(pos.value);
-  if (max === undefined) {
-    errors.push({
-      message: "Cardinality max must be a number greater than 0, 'n' or 'm'",
-      from: pos.from,
-      to: pos.to
-    });
-    return undefined;
-  }
+  const max = Number(pos.value);
 
   if (max <= 0) {
     errors.push({
-      message: "Cardinality max must be greater than 0, 'n' or 'm'",
+      message: `Cardinality max must be greater than 0 or one of ${manySymbolsText()}`,
       from: pos.from,
       to: pos.to
     });
@@ -137,6 +150,11 @@ function parseMax(
   return max;
 }
 
-function parseInteger(raw: string): number | undefined {
-  return /^-?\d+$/.test(raw) ? Number(raw) : undefined;
+function manySymbolsText(): string {
+  const symbols = CardinalityConfig.dslSymbols.map(s => `'${s}'`);
+  if (symbols.length <= 1) return symbols.join("");
+
+  const head = symbols.slice(0, -1).join(", ");
+  const last = symbols[symbols.length - 1];
+  return `${head} or ${last}`;
 }

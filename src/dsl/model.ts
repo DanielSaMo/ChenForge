@@ -7,7 +7,8 @@ interface EntityNode {
 
 export type AttributeKind = "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV";
 
-export type CardinalityValue = number | "n";
+export type ManyCardinalityId = "many";
+export type CardinalityValue = number | ManyCardinalityId;
 
 export interface AttributeCardinality {
   min: number;
@@ -45,6 +46,24 @@ export interface AST {
   attributes: AttributeNode[];
   errors: ParseError[];
 }
+
+export const CardinalityConfig = {
+  manyId: "many" as ManyCardinalityId,
+  dslSymbols: ["n", "m", "N", "M"] as string[],
+
+  display: {
+    node: {
+      single: "n",
+      first: "n",
+      second: "m"
+    },
+    relationship: {
+      single: "N",
+      first: "N",
+      second: "M"
+    }
+  }
+} as const;
 
 export const DSL = {
   keywords: {

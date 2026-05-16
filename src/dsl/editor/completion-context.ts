@@ -128,10 +128,24 @@ function detectActiveChild(
 
   if (
     lastMatched &&
-    isRepeatableCompletionChild(spec, lastMatched.name) &&
-    shouldContinueRepeatableChild(context, spec, lastMatched)
+    isRepeatableCompletionChild(spec, lastMatched.name)
   ) {
-    return lastMatched.name;
+    const field = spec.fields.find(
+      (current): current is IdField =>
+        current.child === lastMatched.name && isIdField(current)
+    )!;
+    const between = context.state.sliceDoc(lastMatched.to, context.pos);
+
+    if (shouldContinueRepeatableChild(between, field.repeatSeparator!)) {
+      return lastMatched.name;
+    }
+
+    if (between.startsWith(field.repeatSeparator!)) {
+      return null;
+    }
+
+    const nextIndex = order.indexOf(lastMatched.name) + 1;
+    return order[nextIndex] ?? null;
   }
 
   return order[orderIndex] ?? null;
@@ -147,18 +161,14 @@ function isRepeatableCompletionChild(spec: NodeSpec, childName: string): boolean
 }
 
 function shouldContinueRepeatableChild(
-  context: CompletionContext,
-  spec: NodeSpec,
-  lastMatched: { name: string; to: number }
+  between: string,
+  repeatSeparator: string
 ): boolean {
-  const field = spec.fields.find(
-    (current): current is IdField =>
-      current.child === lastMatched.name && isIdField(current)
+  return (
+    between.startsWith(repeatSeparator) &&
+    between.length > repeatSeparator.length &&
+    between.slice(repeatSeparator.length).trim() === ""
   );
-  if (!field?.repeatSeparator) return false;
-
-  const between = context.state.sliceDoc(lastMatched.to, context.pos);
-  return between.includes(field.repeatSeparator);
 }
 
 export function isCommentLine(state: EditorState, pos: number): boolean {

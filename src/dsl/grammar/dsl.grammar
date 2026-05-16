@@ -47,7 +47,7 @@ CardinalityValue {
 
   Number {
     "-"? $[0-9]+
-  | $[^A-Za-z_\u{00C0}-\u{10FFFF}]? ("n" | "m") $[^A-Za-z_\u{00C0}-\u{10FFFF}]?
+  | $[^A-Za-z_\u{00C0}-\u{10FFFF}]? ("n" | "m" | "N" | "M") $[^A-Za-z_\u{00C0}-\u{10FFFF}]?
   }
 
   Identifier {
