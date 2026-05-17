@@ -4,12 +4,16 @@ export interface Props {
 }
 const { title } = Astro.props;
 import "../styles/global.css";
+import faviconIco from "../assets/favicon.ico";
+import faviconSvg from "../assets/favicon.svg?url";
 ---
 
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <title>{title}</title>
+    <link rel="icon" type="image/svg+xml" href={faviconSvg} />
+    <link rel="alternate icon" href={faviconIco} />
   </head>
 
   <body class="h-screen flex flex-col bg-gray-50">
