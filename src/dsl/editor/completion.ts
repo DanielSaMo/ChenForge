@@ -33,7 +33,7 @@ export function autocompleteFromSchema(
     return null;
   }
 
-  const word = context.matchBefore(/[\w\u00C0-\uFFFF]+/u);
+  const word = context.matchBefore(/[\w\u00C0-\uFFFF()-]+/u);
   const from = word ? word.from : pos;
 
   const specInfo = getSpecAtPosition(context);

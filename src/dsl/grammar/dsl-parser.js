@@ -2,9 +2,9 @@
 import {LRParser} from "@lezer/lr"
 export const parser = LRParser.deserialize({
   version: 14,
-  states: "&fQVQPOOOOQO'#Cr'#CrQVQPOOOhQQO'#CbOmQQO'#CfOmQQO'#CnOOQO'#Ca'#CaOrQPO'#C`OOQO'#C`'#C`Q}QPO'#CsQYQPOOOOQO-E6p-E6pO!SQPO,58|OOQO'#Ch'#ChO!XQQO,59QO!^QPO,59YOOQO,58z,58zO!cQPO,59_OOQO-E6q-E6qOOQO1G.h1G.hOOQO'#Ci'#CiO!wQPO1G.lO#PQSO'#CkOmQQO1G.tO!XQQO'#CtO#UQPO7+$WO#^QQO7+$WOOQO'#Cl'#ClO#oQPO,59VO!^QPO7+$`OOQO,59`,59`OOQO-E6r-E6rO#tQQO<<GrOOQO'#Cj'#CjOOQO<<Gr<<GrO#PQSO1G.qO$VQQO<<GzOOQOAN=^AN=^O$[QPO7+$]OOQO'#Cp'#CpOOQOAN=fAN=fOOQO<<Gw<<Gw",
-  stateData: "$a~OPOS~ORPOVROZSOcTOeWO~OW[O~OW]O~Oe`ORSXiSX~ORPO~OXcO~OWdO~OlfO~ORPOVgaZgacgaegaiga~OXjOkhO~OakO~OXpOkhO~OWqOlfORYqeYqiYq~OksO~OWqOlfORYyeYyiYy~OWwO~OmyO~O",
-  goto: "#^iPPPPjotPPPtPy!S!Y!`!lPtP!rP!u#P#WVXOQYVVOQYVUOQYQ^SQ_TRmgQe^RnhQrjRupQg_QrjQtmRupQlfRvsRxtQQOSZQaRaXSYOQRbYQieRoi",
+  states: "'OQVQPOOOOQO'#Cr'#CrQVQPOOOhQQO'#CbOmQQO'#CfOmQQO'#CnOOQO'#Ca'#CaOrQPO'#C`OOQO'#C`'#C`Q}QPO'#CsQYQPOOOOQO-E6p-E6pO!SQPO,58|OOQO'#Ch'#ChO!XQQO,59QO!^QQO,59YOOQO,58z,58zO!fQPO,59_OOQO-E6q-E6qOOQO1G.h1G.hOOQO'#Ci'#CiO!zQPO1G.lO#SQSO'#CkO#XQQO1G.tOmQQO1G.tO!XQQO'#CtO#aQPO7+$WO#iQQO7+$WOOQO'#Cl'#ClO#zQPO,59VOOQO'#Cp'#CpOOQO7+$`7+$`O$PQQO7+$`O#XQQO7+$`OOQO,59`,59`OOQO-E6r-E6rO$UQQO<<GrOOQO'#Cj'#CjOOQO<<Gr<<GrO#SQSO1G.qOOQO<<Gz<<GzO$PQQO<<GzOOQOAN=^AN=^O$gQPO7+$]OOQOAN=fAN=fOOQO<<Gw<<Gw",
+  stateData: "$l~OPOS~ORPOVROZSOcTOeWO~OW[O~OW]O~Oe`ORSXiSX~ORPO~OXcO~OWdO~OW]OlfO~ORPOVgaZgacgaegaiga~OXkOkiO~OalO~OWnOlfO~OXtOkiO~OWuOlfORYqeYqiYq~OkwO~OWnO~OWuOlfORYyeYyiYy~Om}O~O",
+  goto: "#kiPPPPjotPPPtPy!V!]!c!rPtP!xP#S#^#eVXOQYVVOQYVUOQYQ^SQ_TQg_RqhQe^RriQvkRztQh_QpgQvkQyqRztQmfR{wQogSxpqR|yQQOSZQaRaXSYOQRbYQjeRsj",
   nodeNames: "⚠ WhiteSpace Program Newline Statement Declaration entityDecl Entity Identifier Type attributeDecl Attribute EntityRef AttributeName CompositionArg CardinalityArg CardinalityValue Number relationshipDecl Relationship RelationshipName LineComment",
   maxTerm: 29,
   skippedNodes: [0,1],
