@@ -83,6 +83,16 @@ export const DSL_SCHEMA: DSLSchema = {
           kind: "id",
           child: "RelationshipName",
           astField: "name"
+        },
+        {
+          kind: "enum",
+          child: "Type",
+          astField: "kind",
+          enumOptions: [
+            { value: "ST", label: "Strong relationship" },
+            { value: "EX", label: "Existence-dependent weak relationship" },
+            { value: "ID", label: "Identifying weak relationship" }
+          ]
         }
       ],
 
@@ -129,7 +139,7 @@ export const DSL_SCHEMA: DSLSchema = {
       ],
 
       missingIdMessage:
-        "Invalid relationship declaration. Expected: relationship entityNameA (min,max) entityNameB (min,max) relationshipName",
+        "Invalid relationship declaration. Expected: relationship entityNameA (min,max) entityNameB (min,max) relationshipName TYPE",
       duplicateIdMessage: name => `Duplicate relationship name '${name}'`,
 
       invalidScopeMessage: name =>
@@ -143,7 +153,8 @@ export const DSL_SCHEMA: DSLSchema = {
         "CardinalityArg",
         "EntityRef",
         "CardinalityArg",
-        "RelationshipName"
+        "RelationshipName",
+        "Type"
       ],
 
       scopeAutocompleteName: {

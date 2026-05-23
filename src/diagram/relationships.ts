@@ -4,7 +4,13 @@ import {
   formatRelationshipRatioDisplay,
   shouldUseCardinalityArrow
 } from "../dsl/schema/cardinality";
-import { dotId, dotLabel, dotString } from "./dot-utils";
+import {
+  dotHtmlLabel,
+  dotHtmlText,
+  dotId,
+  dotLabel,
+  dotString
+} from "./dot-utils";
 
 export function renderRelationships(model: GraphModel): string {
   return model.relationships.map(renderRelationship).join("");
@@ -27,8 +33,26 @@ function renderRelationshipNode(rel: GraphRelationship): string {
   return `
   ${dotId(rel.id)} [
     shape=diamond,
-    ${dotLabel(`${ratio}\n${rel.name}`)}
+    ${renderRelationshipLabel(rel, ratio)}
   ];`;
+}
+
+function renderRelationshipLabel(
+  rel: GraphRelationship,
+  ratio: string
+): string {
+  if (rel.kind === "ST") {
+    return dotLabel(`${ratio}\n${rel.name}`);
+  }
+
+  return dotHtmlLabel(
+    `<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0">` +
+      `<TR>` +
+      `<TD BORDER="1" SIDES="R" CELLPADDING="4">${dotHtmlText(rel.kind)}</TD>` +
+      `<TD CELLPADDING="4">${dotHtmlText(ratio)}<BR/>${dotHtmlText(rel.name)}</TD>` +
+      `</TR>` +
+      `</TABLE>`
+  );
 }
 
 function renderRelationshipEdge(

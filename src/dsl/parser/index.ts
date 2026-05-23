@@ -3,7 +3,12 @@ import type { AST, ParseError } from "../model";
 import { buildASTStructure } from "./ast-builder";
 import { extractNodes } from "./extract";
 import { createEmptyAST } from "../schema/utils";
-import { validateUniqueness, validateEnumTypes, validateScopeReferences } from "./validators";
+import {
+  validateUniqueness,
+  validateEnumTypes,
+  validateScopeReferences,
+  validateRelationshipTypes
+} from "./validators";
 
 export function parseDSL(input: string): AST {
   const tree = parser.parse(input);
@@ -20,6 +25,7 @@ export function parseDSL(input: string): AST {
   validateUniqueness(extracted, errors);
   validateEnumTypes(extracted, errors);
   validateScopeReferences(ast, pendingScopeRefs, errors);
+  validateRelationshipTypes(ast, extracted, errors);
 
   ast.errors.push(...errors);
   return ast;

@@ -91,6 +91,58 @@ export function validateScopeReferences(
   }
 }
 
+export function validateRelationshipTypes(
+  ast: AST,
+  extracted: ExtractedNode[],
+  errors: ParseError[]
+) {
+  const entityByName = new Map(ast.entities.map(entity => [entity.name, entity]));
+
+  for (const extractedNode of extracted) {
+    if (extractedNode.spec.astCollection !== "relationships") continue;
+
+    const { record, fieldPositions, node } = extractedNode;
+    const entities = toList(record.entities);
+    const kind = record.kind;
+
+    if (entities.length !== 2 || typeof kind !== "string") continue;
+
+    const left = entityByName.get(entities[0]);
+    const right = entityByName.get(entities[1]);
+    if (!left || !right) continue;
+
+    const kindPos = fieldPositions.kind?.[0] ?? { from: node.from, to: node.to };
+
+    if (left.kind === "WK" && right.kind === "WK") {
+      errors.push({
+        message: "Relationships between two weak entities are not allowed",
+        from: node.from,
+        to: node.to
+      });
+      continue;
+    }
+
+    if (left.kind === "ST" && right.kind === "ST" && kind !== "ST") {
+      errors.push({
+        message:
+          "A relationship between two strong entities must use relationship type 'ST'",
+        from: kindPos.from,
+        to: kindPos.to
+      });
+      continue;
+    }
+
+    if (left.kind !== right.kind && kind === "ST") {
+      errors.push({
+        message:
+          "A relationship between a strong entity and a weak entity must use relationship type 'EX' or 'ID'",
+        from: kindPos.from,
+        to: kindPos.to
+      });
+    }
+  }
+}
+
 function validateNodeUniqueness(
   extractedNode: ExtractedNode,
   maps: Map<string, Map<string, { from: number; to: number }>>,

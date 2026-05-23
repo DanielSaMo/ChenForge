@@ -3,7 +3,13 @@ import type { GraphModel, GraphAttribute } from "../compiler/graph";
 import {
   formatAttributeOrEntityCardinality
 } from "../dsl/schema/cardinality";
-import { dotId, dotString, dotXLabel } from "./dot-utils";
+import {
+  dotHtmlText,
+  dotHtmlXLabel,
+  dotId,
+  dotString,
+  dotXLabel
+} from "./dot-utils";
 
 interface AttributeStyle {
   node: string;
@@ -44,7 +50,16 @@ function attributeStyle(kind: AttributeKind): AttributeStyle {
   }
 }
 
-function renderNode(id: string, label: string, style: string): string {
+function renderNode(
+  id: string,
+  label: string,
+  style: string,
+  underlined = false
+): string {
+  const xLabel = underlined
+    ? dotHtmlXLabel(`<U>${dotHtmlText(label)}</U>`)
+    : dotXLabel(label);
+
   return `
   ${dotId(id)} [
     shape=circle,
@@ -52,7 +67,7 @@ function renderNode(id: string, label: string, style: string): string {
     height=0.275,
     fixedsize=true,
     label="",
-    ${dotXLabel(label)},
+    ${xLabel},
     ${style}
   ];`;
 }
@@ -99,7 +114,7 @@ function renderSimple(attr: GraphAttribute): string {
       : "";
 
   return [
-    renderNode(id, label, node),
+    renderNode(id, label, node, attr.underlined),
     renderEdge(attr.entityId, id, edge, extra)
   ].join("");
 }

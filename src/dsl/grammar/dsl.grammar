@@ -17,7 +17,7 @@ attributeDecl[@name=attributeDecl] {
 }
 
 relationshipDecl[@name=relationshipDecl] {
-  Relationship EntityRef CardinalityArg? EntityRef CardinalityArg? RelationshipName
+  Relationship EntityRef CardinalityArg? EntityRef CardinalityArg? RelationshipName Type
 }
 
 EntityRef { Identifier }
@@ -42,7 +42,7 @@ CardinalityValue {
   Relationship { "relationship" }
 
   Type {
-    "ST" | "WK" | "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV"
+    "ST" | "WK" | "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV" | "EX" | "ID"
   }
 
   Number {

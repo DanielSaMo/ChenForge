@@ -1,14 +1,14 @@
 export type EntityKind = "ST" | "WK";
+export type AttributeKind = "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV";
+export type RelationshipKind = "ST" | "EX" | "ID";
+
+export type ManyCardinalityId = "many";
+export type CardinalityValue = number | ManyCardinalityId;
 
 interface EntityNode {
   name: string;
   kind: EntityKind;
 }
-
-export type AttributeKind = "PK" | "UK" | "OP" | "DR" | "SP" | "CP" | "MV";
-
-export type ManyCardinalityId = "many";
-export type CardinalityValue = number | ManyCardinalityId;
 
 export interface AttributeCardinality {
   min: number;
@@ -32,6 +32,7 @@ interface RelationshipNode {
   entities: string[];
   cardinalities: RelationshipCardinality[];
   name: string;
+  kind: RelationshipKind;
 }
 
 export interface ParseError {
