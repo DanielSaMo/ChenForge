@@ -146,8 +146,39 @@ function extractArguments(
 ) {
   for (const arg of spec.arguments ?? []) {
     const applies = argumentApplies(arg, record);
-
     const argNodes = node.getChildren(arg.child);
+
+    if (isCardinalityArgument(arg)) {
+      const cardinalities = argNodes
+        .map(argNode => ({
+          value: parseCardinalityArg(input, argNode, errors, {
+            allowManyMin: arg.allowManyMin
+          }),
+          position: getNodeValue(input, argNode)
+        }))
+        .filter(item => Boolean(item.value));
+
+      if (cardinalities.length) {
+        record[arg.astField] = arg.multiple
+          ? cardinalities.map(item => item.value)
+          : cardinalities[0].value;
+        fieldPositions[arg.astField] = arg.multiple
+          ? cardinalities.map(item => item.position)
+          : [cardinalities[0].position];
+      }
+
+      if (arg.expectedCount && argNodes.length !== arg.expectedCount) {
+        const errorRanges = getRelationshipCardinalityErrorRanges(node, spec, argNodes);
+        for (const range of errorRanges) {
+          errors.push({
+            message: arg.requiredMessage,
+            from: range.from,
+            to: range.to
+          });
+        }
+        continue;
+      }
+    }
 
     if (argNodes.length === 0) {
       if (applies) {
@@ -180,37 +211,40 @@ function extractArguments(
       const value = getNodeValue(input, argNode);
       record[arg.astField] = value.value;
       fieldPositions[arg.astField] = [value];
-      continue;
-    }
-
-    if (isCardinalityArgument(arg)) {
-      const cardinalities = argNodes
-        .map(argNode => ({
-          value: parseCardinalityArg(input, argNode, errors, {
-            allowManyMin: arg.allowManyMin
-          }),
-          position: getNodeValue(input, argNode)
-        }))
-        .filter(item => Boolean(item.value));
-
-      if (cardinalities.length) {
-        record[arg.astField] = arg.multiple
-          ? cardinalities.map(item => item.value)
-          : cardinalities[0].value;
-        fieldPositions[arg.astField] = arg.multiple
-          ? cardinalities.map(item => item.position)
-          : [cardinalities[0].position];
-      }
-
-      if (arg.expectedCount && argNodes.length !== arg.expectedCount) {
-        errors.push({
-          message: arg.requiredMessage,
-          from: node.from,
-          to: node.to
-        });
-      }
     }
   }
+}
+
+function getRelationshipCardinalityErrorRanges(
+  node: SyntaxNode,
+  spec: NodeSpec,
+  cardinalityArgs: SyntaxNode[]
+): { from: number; to: number }[] {
+  const scopeField = spec.fields.find(isScopeField);
+  if (!scopeField) return [];
+
+  const entityRefs = node.getChildren(scopeField.child);
+  if (entityRefs.length !== 2) return [];
+
+  const errorRanges: { from: number; to: number }[] = [];
+
+  if (cardinalityArgs.length === 0) {
+    errorRanges.push(
+      { from: entityRefs[0].from, to: entityRefs[0].to },
+      { from: entityRefs[1].from, to: entityRefs[1].to }
+    );
+  } else if (cardinalityArgs.length === 1) {
+    const cardPos = cardinalityArgs[0].from;
+    const e2Pos = entityRefs[1].from;
+
+    if (cardPos < e2Pos) {
+      errorRanges.push({ from: entityRefs[1].from, to: entityRefs[1].to });
+    } else {
+      errorRanges.push({ from: entityRefs[0].from, to: entityRefs[0].to });
+    }
+  }
+
+  return errorRanges;
 }
 
 function argumentApplies(arg: AnyArgument, record: Record<string, any>): boolean {

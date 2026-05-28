@@ -105,7 +105,7 @@ export const DSL_SCHEMA: DSLSchema = {
           allowManyMin: true,
           expectedCount: 2,
           requiredMessage:
-            "Relationship requires cardinalities after each entity. Expected: relationship entityNameA (min,max) entityNameB (min,max) relationshipName",
+            "Missing cardinality after entity. Expected: (min,max)",
           unexpectedMessage: () =>
             "Relationship cardinality must follow an entity reference",
           autocompleteOptions: [

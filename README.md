@@ -1,43 +1,298 @@
-# Astro Starter Kit: Minimal
+# ChenForge
 
-```sh
-npm create astro@latest -- --template minimal
+A modern, web-based tool for designing and visualizing Entity–Relationship (ER) diagrams using extended academic Chen notation. ChenForge combines a domain-specific language (DSL) with a powerful compiler pipeline to transform high-level entity definitions into publication-ready ER diagrams.
+
+**Live Demo**: [https://danielsamo.github.io/ChenForge/](https://danielsamo.github.io/ChenForge/)
+
+## Features
+
+- 🎯 **Chen Notation**: Native support for extended academic Chen notation with proper visual representation
+- ✍️ **Intuitive DSL**: Domain-specific language for defining entities, relationships, and attributes
+- 🔴 **Real-time Validation**: Immediate error feedback integrated into the editor with precise diagnostics
+- 🎨 **Interactive Diagrams**: SVG-based rendering with D3 for smooth visualization and interaction
+- 🏗️ **Modular Architecture**: Clean separation between parsing, compilation, and rendering layers
+- 🔄 **Recursive Relationships**: Support for reflexive relationships with automatic layout handling
+- 📊 **Rich Attribute Types**: Primary keys, unique constraints, optional, derived, simple, composite, and multivalued attributes
+- 🎭 **Relationship Types**: Strong (ST), Existence-dependent (EX), and Identifying (ID) relationships
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js >= 22.12.0
+- npm
+
+### Installation
+
+```bash
+npm install
+npm run dev
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+The application will be available at `http://localhost:4321`
 
-## 🚀 Project Structure
+### Build for Production
 
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+```bash
+npm run build
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+Output will be in the `dist/` directory.
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+## DSL Overview
 
-Any static assets, like images, can be placed in the `public/` directory.
+ChenForge uses a clean, declarative DSL for defining ER models.
 
-## 🧞 Commands
+### Entities
 
-All commands are run from the root of the project, from a terminal:
+Entities are the primary objects in your data model:
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+```
+entity User ST
+entity Product ST
+entity Role WK
+```
 
-## 👀 Want to learn more?
+- `ST`: Strong entity (independent, has a primary key)
+- `WK`: Weak entity (dependent on another entity for identification)
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+### Relationships
+
+Relationships define connections between entities with cardinality constraints:
+
+```
+relationship User (1,n) Product (1,n) Purchases ST
+relationship User (1,1) Role (0,n) HasRole EX
+relationship Product (0,n) Product (1,1) Component ID
+```
+
+**Format**: `relationship Entity1 (min1,max1) Entity2 (min2,max2) RelationshipName Type`
+
+**Relationship Types**:
+
+- `ST`: Strong relationship (between strong entities)
+- `EX`: Existence-dependent weak relationship (identifies weak entity by participation)
+- `ID`: Identifying weak relationship (primary key includes relationship)
+
+**Cardinality**:
+
+- `(0,1)`: Zero or one
+- `(1,1)`: Exactly one (total participation)
+- `(1,n)` or `(1,m)`: One or more
+- `(0,n)` or `(0,m)`: Zero or more
+- `(n,m)`: Many-to-many
+
+### Attributes
+
+Attributes describe properties of entities or relationships:
+
+```
+attribute User username, email PK
+attribute Product name, price SP
+attribute Product description OP
+attribute Product manufacturedDate DR
+attribute Product tags MV (0,n)
+attribute User profile CP Profile
+attribute Profile profilePicture, bio SP
+```
+
+**Attribute Types**:
+
+- `PK`: Primary key (unique, required)
+- `UK`: Unique key
+- `SP`: Simple attribute
+- `OP`: Optional attribute
+- `DR`: Derived attribute (computed)
+- `CP`: Composite attribute (with sub-attributes)
+- `MV`: Multivalued attribute (with cardinality)
+
+**Composite Attributes**:
+
+```
+attribute Address street, city, zipcode CP AddressInfo
+```
+
+**Multivalued Attributes**:
+
+```
+attribute User phoneNumbers MV (1,n)
+```
+
+## Architecture
+
+ChenForge is built on a **7-layer modular architecture** with clear separation of concerns:
+
+```
+┌─────────────────────────────────────────────┐
+│           Web UI (Astro + Svelte)           │  Interactive interface
+├─────────────────────────────────────────────┤
+│   Editor Integration (CodeMirror 6)         │  Real-time editing with syntax highlighting
+├─────────────────────────────────────────────┤
+│      DSL Layer (Lezer Parser)               │  Grammar parsing & tokenization
+├─────────────────────────────────────────────┤
+│   Semantic Analysis & Validation            │  Type checking, scope resolution
+├─────────────────────────────────────────────┤
+│   IR / Intermediate Representation          │  Normalized graph model
+├─────────────────────────────────────────────┤
+│   Diagram Generation (Graphviz)             │  DOT format compilation
+├─────────────────────────────────────────────┤
+│   SVG Rendering (D3)                        │  Final visualization
+└─────────────────────────────────────────────┘
+```
+
+### Layer Breakdown
+
+#### 1. **DSL & Grammar** (`src/dsl/grammar/`)
+
+- **File**: `dsl.grammar` (Lezer grammar specification)
+- **Parser**: Generated by `@lezer/generator`
+- **Purpose**: Defines the syntax of ChenForge's domain-specific language
+- **Output**: AST (Abstract Syntax Tree)
+
+#### 2. **Parser & Extraction** (`src/dsl/parser/`)
+
+- **`extract.ts`**: Traverses Lezer AST and extracts semantic nodes
+- **`cardinality.ts`**: Parses and validates cardinality specifications
+- **`ast-builder.ts`**: Constructs the AST from extracted nodes
+- **`validators.ts`**: Validates uniqueness, references, and semantic constraints
+- **Key Logic**:
+  - Scope resolution (entity references in relationships/attributes)
+  - Cardinality parsing and validation
+  - Duplicate detection
+
+#### 3. **Schema & Type System** (`src/dsl/schema/`)
+
+- **`types.ts`**: TypeScript definitions for all schema elements
+- **`index.ts`**: Schema specification defining node types and field mappings
+- **`cardinality.ts`**: Cardinality formatting and display logic
+- **`utils.ts`**: Helper functions for scope resolution
+
+#### 4. **Semantic Model** (`src/dsl/model.ts`)
+
+- **AST Interface**: Final parsed output with entities, relationships, attributes
+- **ParseError**: Structured error reporting
+- **Type Definitions**: EntityKind, AttributeKind, RelationshipKind, etc.
+
+#### 5. **Compilation & Transformation** (`src/compiler/`)
+
+- **`compile.ts`**: Orchestrates the entire pipeline (parse → transform → render)
+- **`transform.ts`**: Converts AST to GraphModel with:
+  - Deduplication of entities, attributes, relationships
+  - Weak entity identification
+  - Attribute propagation for identifying relationships
+- **`graph.ts`**: Intermediate graph representation ready for visualization
+
+#### 6. **Diagram Generation** (`src/diagram/`)
+
+- **`dot.ts`**: Main renderer; orchestrates Graphviz DOT generation
+- **`relationships.ts`**: Renders relationship nodes with cardinality labels
+  - Handles recursive relationships via dummy nodes
+  - Formats cardinality arrows based on participation type
+- **`attributes.ts`**: Renders attributes with proper styling
+  - PK/UK with special visual representation
+  - Optional attributes with dashed lines
+  - Derived attributes with specific formatting
+- **`dot-utils.ts`**: Graphviz DOT utility functions (node ID generation, label formatting)
+
+#### 7. **Rendering & UI** (`src/components/`, `src/pages/`)
+
+- **Editor Integration**: CodeMirror 6 with real-time linting
+- **Diagram Display**: D3-graphviz for SVG rendering
+- **Syntax Highlighting**: Language definition with semantic tokens
+- **Autocompletion**: Context-aware suggestions based on DSL position
+
+### Data Flow
+
+```
+User Code (DSL)
+    ↓
+[Grammar] (dsl.grammar) → Lezer Parser → Raw AST
+    ↓
+[Extraction] (extract.ts) → Extract nodes with positions
+    ↓
+[Validation] (validators.ts) → Semantic validation → ParseError[]
+    ↓
+[AST Building] (ast-builder.ts) → Final AST
+    ↓
+[Transformation] (transform.ts) → Deduplication, resolution → GraphModel
+    ↓
+[DOT Generation] (dot.ts) → Graphviz specification
+    ↓
+[D3 Graphviz] → SVG rendering
+    ↓
+Visual Diagram + Error Diagnostics (in editor)
+```
+
+## Error Handling & Diagnostics
+
+ChenForge provides precise, actionable error messages integrated into the editor:
+
+```
+relationship User Role (1,n) HasRole    ❌ Error: Entity 'Role' requires cardinality
+relationship User (1,1) Role HasRole    ❌ Error: Duplicate relationship name 'HasRole'
+attribute Unknown name PK               ❌ Error: Unknown entity 'Unknown' referenced
+```
+
+**Error Categories**:
+
+- **Syntax Errors**: Invalid tokens or grammar (detected by Lezer)
+- **Semantic Errors**: Type mismatches, invalid relationships
+- **Scope Errors**: References to undefined entities or relationships
+- **Uniqueness Errors**: Duplicate names within a scope
+
+All errors report precise source locations for accurate inline feedback.
+
+## Relationship Cardinality & Participation
+
+ChenForge uses the standard Chen cardinality notation:
+
+- **Minimum**: Specifies minimum participation (0 = optional, 1+ = required)
+- **Maximum**: Specifies maximum participation (1 = functional, n/m = many)
+
+Examples:
+
+```
+relationship User (1,n) Order (1,1) Places ST
+relationship Department (1,n) Employee (0,n) Works ST
+```
+
+### Weak Entity Identification
+
+Weak entities are identified through their participation in identifying relationships:
+
+```
+entity Student ST
+entity Enrollment WK
+
+relationship Student (1,n) Enrollment (1,1) Enrols ID
+```
+
+The `ID` relationship type indicates that `Enrollment` is identified by its participation in `Enrols`. The identifying relationship's cardinality is shown with a double line in visual notation.
+
+## Technical Stack
+
+| Layer                  | Technology         | Purpose                                    |
+| ---------------------- | ------------------ | ------------------------------------------ |
+| **Frontend Framework** | Astro 6 + Svelte 5 | Static generation + interactive components |
+| **Parser**             | Lezer              | LR parser generator for domain language    |
+| **Editor**             | CodeMirror 6       | Real-time editing with diagnostics         |
+| **Compiler**           | TypeScript         | Type-safe compilation pipeline             |
+| **Visualization**      | D3-Graphviz        | SVG rendering of Graphviz output           |
+| **Graph Layout**       | Graphviz           | DOT format for automatic node positioning  |
+| **Styling**            | Tailwind CSS       | Utility-first CSS framework                |
+
+## Performance Considerations
+
+- **Incremental Parsing**: DSL parser operates on the full source incrementally
+- **Real-time Diagnostics**: Validation runs on every keystroke via CodeMirror linter
+- **DOT Caching**: Graphviz output cached until AST changes
+- **Deduplication**: Transform layer normalizes duplicate declarations automatically
+
+## Contributing
+
+Contributions are welcome. Please ensure:
+
+1. Changes maintain the 7-layer architecture
+2. New validations integrate into the validators module
+3. Grammar changes are regenerated with `npm run build:dsl`
+4. TypeScript types are properly defined
