@@ -12,7 +12,7 @@ A modern, web-based tool for designing and visualizing Entity–Relationship (ER
 - 🎨 **Interactive Diagrams**: SVG-based rendering with D3 for smooth visualization and interaction
 - 🏗️ **Modular Architecture**: Clean separation between parsing, compilation, and rendering layers
 - 🔄 **Recursive Relationships**: Support for reflexive relationships with automatic layout handling
-- 📊 **Rich Attribute Types**: Primary keys, unique constraints, optional, derived, simple, composite, and multivalued attributes
+- 📊 **Rich Attribute Types**: Primary keys, unique keys, optional, derived, simple, composite, and multivalued attributes
 - 🎭 **Relationship Types**: Strong (ST), Existence-dependent (EX), and Identifying (ID) relationships
 
 ## Quick Start
@@ -92,7 +92,7 @@ attribute Product name, price SP
 attribute Product description OP
 attribute Product manufacturedDate DR
 attribute Product tags MV (0,n)
-attribute User profile CP Profile
+attribute User firstName, lastName1, lastName2 CP fullName
 attribute Profile profilePicture, bio SP
 ```
 
@@ -109,7 +109,7 @@ attribute Profile profilePicture, bio SP
 **Composite Attributes**:
 
 ```
-attribute Address street, city, zipcode CP AddressInfo
+attribute User street, city, zipcode CP address
 ```
 
 **Multivalued Attributes**:
@@ -228,7 +228,7 @@ Visual Diagram + Error Diagnostics (in editor)
 ChenForge provides precise, actionable error messages integrated into the editor:
 
 ```
-relationship User Role (1,n) HasRole    ❌ Error: Entity 'Role' requires cardinality
+relationship User Role (1,n) HasRole    ❌ Error: Entity 'User' requires cardinality
 relationship User (1,1) Role HasRole    ❌ Error: Duplicate relationship name 'HasRole'
 attribute Unknown name PK               ❌ Error: Unknown entity 'Unknown' referenced
 ```
